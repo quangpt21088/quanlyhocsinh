@@ -1,170 +1,61 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { getDb } = require('./database');
-
+const { getPool } = require('./database');
 const JWT_SECRET = process.env.JWT_SECRET || 'kilo-academy-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
-
-const hashPassword = (password) => {
-    return crypto.createHash('sha256').update(password).digest('hex');
-};
-
-const generateToken = (admin) => {
-    return jwt.sign(
-        { id: admin.id, username: admin.username, role: admin.role },
-        JWT_SECRET,
-        { expiresIn: TOKEN_EXPIRY }
-    );
-};
-
-const verifyToken = (token) => {
-    try {
-        return jwt.verify(token, JWT_SECRET);
-    } catch {
-        return null;
-    }
-};
-
-const login = (username, password) => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT * FROM admins WHERE username = ?');
-    stmt.bind([username]);
-    if (!stmt.step()) {
-        stmt.free();
-        return null;
-    }
-    const admin = stmt.getAsObject();
-    stmt.free();
-
-    const hashedInput = hashPassword(password);
-    if (admin.password_hash !== hashedInput) return null;
-
+const hashPassword = (password) => crypto.createHash('sha256').update(password).digest('hex');
+const generateToken = (admin) => jwt.sign({ id: admin.id, username: admin.username, role: admin.role }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+const verifyToken = (token) => { try { return jwt.verify(token, JWT_SECRET); } catch { return null; } };
+const login = async (username, password) => {
+    const pool = getPool();
+    const result = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
+    if (result.rows.length === 0) return null;
+    const admin = result.rows[0];
+    if (admin.password_hash !== hashPassword(password)) return null;
     const token = generateToken(admin);
-    return {
-        token,
-        admin: {
-            id: admin.id,
-            username: admin.username,
-            name: admin.name,
-            role: admin.role,
-            permissions: JSON.parse(admin.permissions || '{}')
-        }
-    };
+    return { token, admin: { id: admin.id, username: admin.username, name: admin.name, role: admin.role, permissions: JSON.parse(admin.permissions || '{}') } };
 };
-
-const getAdmins = () => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins ORDER BY created_at DESC');
-    const admins = [];
-    while (stmt.step()) {
-        const a = stmt.getAsObject();
-        a.permissions = JSON.parse(a.permissions || '{}');
-        admins.push(a);
-    }
-    stmt.free();
-    return admins;
+const getAdmins = async () => {
+    const pool = getPool();
+    const result = await pool.query('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins ORDER BY created_at DESC');
+    return result.rows.map(a => ({ ...a, permissions: JSON.parse(a.permissions || '{}') }));
 };
-
-const getAdminById = (id) => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins WHERE id = ?');
-    stmt.bind([id]);
-    if (!stmt.step()) {
-        stmt.free();
-        return null;
-    }
-    const admin = stmt.getAsObject();
-    stmt.free();
-    admin.permissions = JSON.parse(admin.permissions || '{}');
-    return admin;
+const getAdminById = async (id) => {
+    const pool = getPool();
+    const result = await pool.query('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins WHERE id = $1', [id]);
+    if (result.rows.length === 0) return null;
+    const a = result.rows[0];
+    a.permissions = JSON.parse(a.permissions || '{}');
+    return a;
 };
-
-const createAdmin = (data) => {
-    const db = getDb();
+const createAdmin = async (data) => {
+    const pool = getPool();
     const id = 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     const permissions = data.permissions ? JSON.stringify(data.permissions) : '{}';
-    db.run('INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.username, hashPassword(data.password), data.name, data.role || 'admin', permissions]);
+    await pool.query('INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1,$2,$3,$4,$5,$6)', [id, data.username, hashPassword(data.password), data.name, data.role || 'admin', permissions]);
     return getAdminById(id);
 };
-
-const updateAdmin = (id, data) => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT * FROM admins WHERE id = ?');
-    stmt.bind([id]);
-    if (!stmt.step()) {
-        stmt.free();
-        return null;
-    }
-    const admin = stmt.getAsObject();
-    stmt.free();
-
-    const updates = {
-        username: data.username || admin.username,
-        name: data.name || admin.name,
-        role: data.role || admin.role,
-        permissions: data.permissions ? JSON.stringify(data.permissions) : admin.permissions,
-        updated_at: new Date().toISOString()
-    };
-
-    if (data.password) {
-        updates.password_hash = hashPassword(data.password);
-    } else {
-        updates.password_hash = admin.password_hash;
-    }
-
-    db.run('UPDATE admins SET username = ?, name = ?, role = ?, password_hash = ?, permissions = ?, updated_at = ? WHERE id = ?',
-        [updates.username, updates.name, updates.role, updates.password_hash, updates.permissions, updates.updated_at, id]);
-
+const updateAdmin = async (id, data) => {
+    const pool = getPool();
+    const current = await getAdminById(id);
+    if (!current) return null;
+    const permissions = data.permissions ? JSON.stringify(data.permissions) : current.permissions;
+    await pool.query('UPDATE admins SET username=$1, name=$2, role=$3, password_hash=$4, permissions=$5, updated_at=NOW() WHERE id=$6', [data.username || current.username, data.name || current.name, data.role || current.role, data.password ? hashPassword(data.password) : current.password_hash, permissions, id]);
     return getAdminById(id);
 };
-
-const deleteAdmin = (id) => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT role FROM admins WHERE id = ?');
-    stmt.bind([id]);
-    if (!stmt.step()) {
-        stmt.free();
-        return false;
-    }
-    const admin = stmt.getAsObject();
-    stmt.free();
-
-    if (admin.role === 'super') {
-        const countStmt = db.prepare('SELECT COUNT(*) as count FROM admins WHERE role = ?');
-        countStmt.bind(['super']);
-        countStmt.step();
-        const result = countStmt.getAsObject();
-        countStmt.free();
-        if (result.count <= 1) throw new Error('Không thể xóa Super Admin cuối cùng');
-    }
-    db.run('DELETE FROM admins WHERE id = ?', [id]);
+const deleteAdmin = async (id) => {
+    const pool = getPool();
+    const admin = await pool.query('SELECT role FROM admins WHERE id = $1', [id]);
+    if (admin.rows.length === 0) return false;
+    if (admin.rows[0].role === 'super') { const count = await pool.query('SELECT count(*) FROM admins WHERE role = $1', ['super']); if (parseInt(count.rows[0].count) <= 1) throw new Error('Không thể xóa Super Admin cuối cùng'); }
+    await pool.query('DELETE FROM admins WHERE id = $1', [id]);
     return true;
 };
-
-const changePassword = (id, newPassword) => {
-    const db = getDb();
-    const stmt = db.prepare('SELECT * FROM admins WHERE id = ?');
-    stmt.bind([id]);
-    if (!stmt.step()) {
-        stmt.free();
-        return false;
-    }
-    stmt.free();
-    db.run('UPDATE admins SET password_hash = ?, updated_at = ? WHERE id = ?',
-        [hashPassword(newPassword), new Date().toISOString(), id]);
+const changePassword = async (id, newPassword) => {
+    const pool = getPool();
+    const admin = await pool.query('SELECT id FROM admins WHERE id = $1', [id]);
+    if (admin.rows.length === 0) return false;
+    await pool.query('UPDATE admins SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hashPassword(newPassword), id]);
     return true;
 };
-
-module.exports = {
-    hashPassword,
-    generateToken,
-    verifyToken,
-    login,
-    getAdmins,
-    getAdminById,
-    createAdmin,
-    updateAdmin,
-    deleteAdmin,
-    changePassword
-};
+module.exports = { hashPassword, generateToken, verifyToken, login, getAdmins, getAdminById, createAdmin, updateAdmin, deleteAdmin, changePassword };

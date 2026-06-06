@@ -1,6 +1,6 @@
 const { verifyToken, getAdminById } = require('../auth');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -12,7 +12,7 @@ const authMiddleware = (req, res, next) => {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    const admin = getAdminById(decoded.id);
+    const admin = await getAdminById(decoded.id);
     if (!admin) {
         return res.status(401).json({ error: 'Admin not found' });
     }

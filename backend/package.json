@@ -1,7 +1,7 @@
 {
   "name": "kilo-academy-backend",
   "version": "1.0.0",
-  "description": "Backend API for Quản Lý Học Viên Trung Tâm",
+  "description": "Backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -14,6 +14,6 @@
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
-    "sql.js": "^1.12.0"
+    "pg": "^8.21.0"
   }
 }
