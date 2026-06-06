@@ -1,7 +1,7 @@
 const express = require('express');
-const { getPool } = require('./database');
-const { login, createAdmin, updateAdmin, deleteAdmin, changePassword, getAdmins, getAdminById } = require('./auth');
-const { authMiddleware, superOnly, checkPermission } = require('./middleware');
+const { getPool } = require('../database');
+const { login, createAdmin, updateAdmin, deleteAdmin, changePassword, getAdmins, getAdminById } = require('../auth');
+const { authMiddleware, superOnly, checkPermission } = require('../middleware');
 const router = express.Router();
 const all = async (sql, params = []) => { const pool = getPool(); const result = await pool.query(sql, params); return result.rows; };
 const get = async (sql, params = []) => { const rows = await all(sql, params); return rows[0] || null; };
