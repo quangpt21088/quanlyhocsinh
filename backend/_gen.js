@@ -1,0 +1,1 @@
+const fs = require('fs'); const d = 'D:\\Quang\\kilocode\\backend'; const w = (f, c) => { fs.writeFileSync(d + '\\' + f, c); console.log('written: ' + f); }; module.exports = { w };

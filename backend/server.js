@@ -12,5 +12,13 @@ app.get('/api/ping', (req, res) => { res.json({ status: 'ok', timestamp: new Dat
 const frontendPath = path.join(__dirname, '..');
 app.use(express.static(frontendPath));
 app.get('*', (req, res) => { if (!req.path.startsWith('/api')) res.sendFile(path.join(frontendPath, 'index.html')); });
-init().then(() => { app.listen(PORT, () => { console.log('Server running on port ' + PORT); }); }).catch(err => { console.error('Failed:', err); process.exit(1); });
+init().then(() => {
+    app.listen(PORT, () => {
+        console.log('Server running on port ' + PORT);
+        console.log('DATABASE_URL: ' + (process.env.DATABASE_URL ? 'SET' : 'NOT SET'));
+    });
+}).catch(err => {
+    console.error('Failed to initialize:', err.message);
+    process.exit(1);
+});
 module.exports = app;

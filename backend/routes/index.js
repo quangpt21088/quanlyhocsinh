@@ -6,7 +6,18 @@ const router = express.Router();
 const all = async (sql, params = []) => { const pool = getPool(); const result = await pool.query(sql, params); return result.rows; };
 const get = async (sql, params = []) => { const rows = await all(sql, params); return rows[0] || null; };
 const run = async (sql, params = []) => { const pool = getPool(); await pool.query(sql, params); };
-router.post('/auth/login', async (req, res) => { const { username, password } = req.body; if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' }); const result = await login(username, password); if (!result) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' }); res.json(result); });
+router.post('/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+        const result = await login(username, password);
+        if (!result) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+        res.json(result);
+    } catch (err) {
+        console.error('Login route error:', err.message);
+        res.status(500).json({ error: 'Lỗi server: ' + err.message });
+    }
+});
 router.get('/ping', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
 router.get('/students', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM students ORDER BY name')); });
 router.post('/students', authMiddleware, checkPermission('students', 'add'), async (req, res) => { const { id, name, phone, email, dob, gender, address, status, discountType, discountValue, createdAt } = req.body; if (!name) return res.status(400).json({ error: 'Thiếu tên học viên' }); await run('INSERT INTO students (id, name, phone, email, dob, gender, address, status, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET name=$2,phone=$3,email=$4,dob=$5,gender=$6,address=$7,status=$8,discount_type=$9,discount_value=$10', [id || 'st_' + Date.now(), name, phone||'', email||'', dob||'', gender||'', address||'', status||'Đang học', discountType||'', discountValue||0, createdAt||new Date().toISOString()]); res.json({ success: true }); });

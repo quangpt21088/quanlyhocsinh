@@ -1,0 +1,1 @@
+const fs = require('fs'); var d = process.cwd().replace(/\\/g, '/'); var w = function(f,c){fs.writeFileSync(d+'/'+f,c);console.log('OK: '+f)};console.log('ready');
