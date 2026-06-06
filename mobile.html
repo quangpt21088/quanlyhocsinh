@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Điểm Danh - Mobile</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --danger: #f44336;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --border: #e0e0e0;
+            --text: #1a1a2e;
+            --text-light: #6c757d;
+            --success: #4caf50;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Header */
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .header-user {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .btn-logout:active { background: rgba(255,255,255,0.3); }
+
+        /* Main */
+        .main {
+            padding: 1rem;
+            padding-bottom: 5rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary-dark);
+        }
+
+        /* Form */
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 0.3rem;
+        }
+
+        select, input[type="date"], input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 0.7rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            color: var(--text);
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            padding-right: 2rem;
+        }
+
+        .form-group { margin-bottom: 0.75rem; }
+        .form-group:last-child { margin-bottom: 0; }
+
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .form-row .form-group { flex: 1; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.7rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        .btn:active { transform: scale(0.98); }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:active { background: var(--primary-dark); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:active { background: #43a047; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-row .btn { flex: 1; }
+
+        /* Attendance list */
+        .attendance-list {
+            list-style: none;
+        }
+
+        .attendance-item {
+            display: flex;
+            align-items: center;
+            padding: 0.85rem 0.5rem;
+            border-bottom: 1px solid var(--border);
+            gap: 0.75rem;
+        }
+
+        .attendance-item:last-child { border-bottom: none; }
+
+        .attendance-item input[type="checkbox"] {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .attendance-item .student-name {
+            font-size: 1rem;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .attendance-item .student-count {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+
+        /* Date list */
+        .date-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .date-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--primary);
+            color: white;
+            padding: 0.4rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .date-tag .delete-date {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        /* Login */
+        .login-overlay {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary), #7209b7);
+            padding: 1rem;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem 1.5rem;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .login-icon {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header h2 {
+            font-size: 1.3rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .login-header p {
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .login-btn {
+            margin-top: 0.5rem;
+        }
+
+        .login-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 1.2rem;
+        }
+
+        /* Save bar */
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.75rem 1rem;
+            background: white;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        /* Hidden */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Login -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-header">
+                <span class="login-icon">&#127891;</span>
+                <h2>Điểm Danh</h2>
+                <p>Hệ Thống Quản Lý Học Viên</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUsername">Tên Đăng Nhập</label>
+                    <input type="text" id="loginUsername" placeholder="Tên đăng nhập" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Mật Khẩu</label>
+                    <input type="password" id="loginPassword" placeholder="Mật khẩu" required autocomplete="current-password">
+                </div>
+                <p class="login-error" id="loginError"></p>
+                <button type="submit" class="btn btn-primary login-btn">Đăng Nhập</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="appLayout" class="hidden">
+        <div class="header">
+            <div>
+                <h1>Điểm Danh</h1>
+                <span class="header-user" id="headerUser"></span>
+            </div>
+            <button class="btn-logout" id="logoutBtn">Đăng Xuất</button>
+        </div>
+
+        <div class="main">
+            <!-- Course & Date Selection -->
+            <div class="card">
+                <h2>Chọn Khóa Học</h2>
+                <div class="form-group">
+                    <label for="courseSelect">Khóa Học</label>
+                    <select id="courseSelect">
+                        <option value="">-- Chọn khóa học --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="monthFilter">Tháng</label>
+                        <select id="monthFilter">
+                            <option value="">-- Chọn tháng --</option>
+                            <option value="1">Tháng 1</option>
+                            <option value="2">Tháng 2</option>
+                            <option value="3">Tháng 3</option

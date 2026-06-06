@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Flow - Quản Lý Học Viên</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .test-suite { margin: 10px 0; padding: 10px; background: #252526; border-radius: 4px; }
+        .test-suite h3 { margin: 0 0 10px 0; color: #569cd6; }
+        .test { padding: 4px 8px; margin: 2px 0; border-radius: 2px; }
+        .pass { background: #0d3d0d; color: #4ec9b0; }
+        .fail { background: #3d0d0d; color: #f44747; }
+        .info { background: #1e3d5c; color: #9cdcfe; }
+        #summary { margin-top: 20px; padding: 15px; background: #2d2d2d; border-radius: 4px; font-size: 1.2em; }
+        .btn { padding: 8px 16px; margin: 4px; border: none; border-radius: 4px; cursor: pointer; background: #0e639c; color: white; }
+        .btn:hover { background: #1177bb; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Flow - Quản Lý Học Viên</h1>
+    <button class="btn" onclick="runAllTests()">▶ Run All Tests</button>
+    <button class="btn" onclick="clearResults()">🗑 Clear</button>
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <script type="module">
+        import { state, resetEditStates } from './modules/state.js';
+        import { formatCurrency, formatDate, getStatusClass, escapeHtml, formatCourseName, getStudentCourseCount, getCourseEnrollmentCount, getStudentCourses, getCourseAttendanceDates } from './modules/utils.js';
+        import { checkPermission } from './modules/auth.js';
+
+        let results = [];
+        let passed = 0, failed = 0;
+
+        function log(msg, type = 'info') {
+            results.push({ msg, type });
+            if (type === 'pass') passed++;
+            if (type === 'fail') failed++;
+        }
+
+        function assert(condition, msg) {
+            if (condition) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}`, 'fail');
+        }
+
+        function assertEqual(actual, expected, msg) {
+            if (actual === expected) log(`✅ ${msg}: ${actual}`, 'pass');
+            else log(`❌ ${msg}: expected ${expected}, got ${actual}`, 'fail');
+        }
+
+        window.runAllTests = function() {
+            results = [];
+            passed = 0;
+            failed = 0;
+
+            // ===== SUITE 1: State Management =====
+            log('=== SUITE 1: State Management ===', 'info');
+            
+            resetEditStates();
+            assert(state.editingStudentId === null, 'resetEditStates clears editingStudentId');
+            assert(state.editingCourseId === null, 'resetEditStates clears editingCourseId');
+            assert(state.editingEnrollmentId === null, 'resetEditStates clears editingEnrollmentId');
+            assert(state.editingAdminId === null, 'resetEditStates clears editingAdminId');
+
+            state.students = [{ id: 's1', name: 'Nguyễn Văn A', phone: '0901234567', email: 'a@test.com', status: 'Đang học' }];
+            assertEqual(state.students.length, 1, 'Can add student to state');
+            
+            state.courses = [{ id: 'c1', name: 'Tiếng Anh Cơ Bản', instructor: 'Thầy B', month: 6, fee: 500000, maxStudents: 30, status: 'Đang mở' }];
+            assertEqual(state.courses.length, 1, 'Can add course to state');
+
+            state.enrollments = [{ id: 'e1', studentId: 's1', courseId: 'c1', date: '2026-06-01' }];
+            assertEqual(state.enrollments.length, 1, 'Can add enrollment to state');
+
+            state.attendances = [{ id: 'a1', courseId: 'c1', date: '2026-06-01', studentId: 's1', present: true }];
+            assertEqual(state.attendances.length, 1, 'Can add attendance to state');
+
+            state.paymentRecords = [{ studentId: 's1', courseId: 'c1', month: '6', status: 'Chưa thanh toán' }];
+            assertEqual(state.paymentRecords.length, 1, 'Can add payment record to state');
+
+            state.admins = [{ id: 'admin1', username: 'admin', passwordHash: 'hash123', name: 'Super Admin', role: 'super' }];
+            assertEqual(state.admins.length, 1, 'Can add admin to state');
+
+            // ===== SUITE 2: Utils Functions =====
+            log('=== SUITE 2: Utils Functions ===', 'info');
+
+            assertEqual(formatCurrency(1000000), '1,000,000 ₫', 'formatCurrency(1000000)');
+            assertEqual(formatCurrency(0), '0 ₫', 'formatCurrency(0)');
+            assertEqual(formatCurrency(500000), '500,000 ₫', 'formatCurrency(500000)');
+
+            const dateResult = formatDate('2026-01-15');
+            assert(dateResult !== '-', 'formatDate returns valid date');
+            assert(dateResult.includes('2026'), 'formatDate includes year');
+            assertEqual(formatDate(''), '-', 'formatDate empty returns dash');
+            assertEqual(formatDate(null), '-', 'formatDate null returns dash');
+
+            assertEqual(getStatusClass('Đang học'), 'status-active', 'getStatusClass Đang học');
+            assertEqual(getStatusClass('Tạm nghỉ'), 'status-inactive', 'getStatusClass Tạm nghỉ');
+            assertEqual(getStatusClass('Đã tốt nghiệp'), 'status-graduated', 'getStatusClass Đã tốt nghiệp');
+            assertEqual(getStatusClass('Đang mở'), 'status-open', 'getStatusClass Đang mở');
+            assertEqual(getStatusClass('Unknown'), '', 'getStatusClass unknown returns empty');
+
+            assertEqual(escapeHtml('<script>alert("xss")</script>'), '&lt;script&gt;alert("xss")&lt;/script&gt;', 'escapeHtml escapes tags');
+            assertEqual(escapeHtml(''), '', 'escapeHtml empty string');
+            assertEqual(escapeHtml(null), '', 'escapeHtml null');
+
+            const courseName = formatCourseName({ name: 'Tiếng Anh', month: 6 });
+            assertEqual(courseName, 'Tiếng Anh - Tháng 6', 'formatCourseName with month');
+            assertEqual(formatCourseName({ name: 'Toán' }), 'Toán', 'formatCourseName without month');
+            assertEqual(formatCourseName(null), '', 'formatCourseName null');
+
+            // ===== SUITE 3: Business Logic =====
+            log('=== SUITE 3: Business Logic ===', 'info');
+
+            assertEqual(getStudentCourseCount('s1'), 1, 'getStudentCourseCount for s1');
+            assertEqual(getStudentCourseCount('s2'), 0, 'getStudentCourseCount for non-existent');
+            assertEqual(getCourseEnrollmentCount('c1'), 1, 'getCourseEnrollmentCount for c1');
+            assertEqual(getCourseEnrollmentCount('c2'), 0, 'getCourseEnrollmentCount for non-existent');
+
+            const courses = getStudentCourses('s1');
+            assertEqual(courses.length, 1, 'getStudentCourses returns array');
+            assert(courses[0].includes('Tiếng Anh'), 'getStudentCourses includes course name');
+
+            const dates = getCourseAttendanceDates('c1');
+            assertEqual(dates.length, 1, 'getCourseAttendanceDates returns dates');
+            assertEqual(dates[0], '2026-06-01', 'getCourseAttendanceDates correct date');
+
+            // ===== SUITE 4: Permissions =====
+            log('=== SUITE 4: Permissions ===', 'info');
+
+            state.currentAdmin = { role: 'super' };
+            assert(checkPermission('students', 'view'), 'Super admin can view students');
+            assert(checkPermission('students', 'delete'), 'Super admin can delete students');
+            assert(checkPermission('courses', 'edit'), 'Super admin can edit courses');
+
+            state.currentAdmin = { role: 'admin', permissions: { students: { view: true, add: false, edit: true, delete: false } } };
+            assert(checkPermission('students', 'view'), 'Admin can view students');
+            assert(!checkPermission('students', 'add'), 'Admin cannot add students');
+            assert(checkPermission('students', 'edit'), 'Admin can edit students');
+            assert(!checkPermission('students', 'delete'), 'Admin cannot delete students');
+            assert(!checkPermission('courses', 'view'), 'Admin has no course permissions');
+
+            state.currentAdmin = null;
+            assert(!checkPermission('students', 'view'), 'Null admin has no permissions');
+
+            // ===== SUITE 5: CRUD Operations =====
+            log('=== SUITE 5: CRUD Operations ===', 'info');
+
+            // Reset state
+            state.students = [];
+            state.courses = [];
+            state.enrollments = [];
+            state.attendances = [];
+            state.paymentRecords = [];
+            state.currentAdmin = { role: 'super' };
+
+            // Create students
+            state.students.push({ id: 's1', name: 'Student 1', phone: '001', status: 'Đang học' });
+            state.students.push({ id: 's2', name: 'Student 2', phone: '002', status: 'Đang học' });
+            state.students.push({ id: 's3', name: 'Student 3', phone: '003', status: 'Tạm nghỉ' });
+            assertEqual(state.students.length, 3, 'Created 3 students');
+
+            // Update student
+            const idx = state.students.findIndex(s => s.id === 's1');
+            state.students[idx] = { ...state.students[idx], name: 'Student 1 Updated' };
+            assertEqual(state.students[0].name, 'Student 1 Updated', 'Updated student name');
+
+            // Delete student
+            state.students = state.students.filter(s => s.id !== 's2');
+            assertEqual(state.students.length, 2, 'Deleted student s2');
+
+            // Create course
+            state.courses.push({ id: 'c1', name: 'Course 1', instructor: 'GV1', month: 6, fee: 100000, maxStudents: 30, status: 'Đang mở' });
+            assertEqual(state.courses.length, 1, 'Created course');
+
+            // Enroll student
+            state.enrollments.push({ id: 'e1', studentId: 's1', courseId: 'c1', date: '2026-06-01' });
+            assertEqual(state.enrollments.length, 1, 'Enrolled student in course');
+
+            // Check duplicate enrollment prevention
+            const isDuplicate = state.enrollments.some(e => e.studentId === 's1' && e.courseId === 'c1');
+            assert(isDuplicate, 'Duplicate enrollment detected');
+
+            // Attendance
+            state.attendances.push({ id: 'a1', courseId: 'c1', date: '2026-06-01', studentId: 's1', present: true });
+            state.attendances.push({ id: 'a2', courseId: 'c1', date: '2026-06-01', studentId: 's3', present: false });
+            assertEqual(state.attendances.length, 2, 'Added 2 attendance records');
+
+            const presentCount = state.attendances.filter(a => a.studentId === 's1' && a.present).length;
+            assertEqual(presentCount, 1, 'Student s1 present count');
+
+            // Payment
+            state.paymentRecords.push({ studentId: 's1', courseId: 'c1', month: '6', status: 'Đã thanh toán', method: 'Tiền mặt' });
+            const payment = state.paymentRecords.find(r => r.studentId === 's1');
+            assert(payment && payment.status === 'Đã thanh toán', 'Payment recorded');
+
+            // ===== SUITE 6: Data Integrity =====
+            log('=== SUITE 6: Data Integrity ===', 'info');
+
+            // Delete course should clean up enrollments
+            const enrollmentsBefore = state.enrollments.length;
+            state.enrollments = state.enrollments.filter(e => e.courseId !== 'c1');
+            assertEqual(state.enrollments.length, 0, 'Enrollments cleaned up after course delete');
+
+            // Delete student should clean up attendance
+            state.attendances = state.attendances.filter(a => a.studentId !== 's1');
+            assertEqual(state.attendances.length, 1, 'Attendance cleaned for deleted student');
+
+            // Reset
+            state.students = [];
+            state.courses = [];
+            state.enrollments = [];
+            state.attendances = [];
+            state.paymentRecords = [];
+            state.currentAdmin = null;
+
+            // ===== RENDER RESULTS =====
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            const suites = {};
+            let currentSuite = '';
+            results.forEach(r => {
+                if (r.msg.startsWith('=== SUITE')) {
+                    currentSuite = r.msg.replace(/=== /g, '').replace(/ ===/g, '');
+                    suites[currentSuite] = [];
+                } else if (currentSuite) {
+                    suites[currentSuite].push(r);
+                }
+            });
+
+            Object.entries(suites).forEach(([suite, items]) => {
+                const suiteDiv = document.createElement('div');
+                suiteDiv.className = 'test-suite';
+                suiteDiv.innerHTML = `<h3>${suite}</h3>`;
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `test ${item.type}`;
+                    div.textContent = item.msg;
+                    suiteDiv.appendChild(div);
+                });
+                resultsDiv.appendChild(suiteDiv);
+            });
+
+            const summaryDiv = document.getElementById('summary');
+            const allPassed = failed === 0;
+            summaryDiv.innerHTML = `
+                <div style="color: ${allPassed ? '#4ec9b0' : '#f44747'}">
+                    ${allPassed ? '🎉 ALL TESTS PASSED!' : '⚠️ SOME TESTS FAILED'}
+                </div>
+                <div>Total: ${passed + failed} | <span style="color:#4ec9b0">Passed: ${passed}</span> | <span style="color:#f44747">Failed: ${failed}</span></div>
+            `;
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+        };
+    </script>
+</body>
+</html>

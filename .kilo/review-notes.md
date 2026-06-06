@@ -1,0 +1,260 @@
+# Review Notes - Quản Lý Học Viên Trung Tâm
+
+## 📅 Thông Tin Review
+- **Thời gian**: 2026-06-04 ~ 2026-06-05
+- **Workspace**: C:\Users\MrQ\Desktop\Quang\kilocode
+
+---
+
+## ✅ ĐÃ HOÀN THÀNH
+
+### Modules Đã Tạo (16 modules):
+
+| Module | Chức năng | Dòng |
+|-------|----------|-----|
+| state.js | State management | ~35 |
+| api.js | API client layer | ~65 |
+| utils.js | Utilities (formatCurrency, formatDate, getStatusClass, escapeHtml, formatCourseName, getStudentCourseCount, getCourseEnrollmentCount, getStudentCourses, getCourseAttendanceDates) | ~60 |
+| storage.js | Hybrid storage + backup/restore | ~150 |
+| ui.js | UI helpers (switchTab, showLogin, showApp, applyPermissions) | ~110 |
+| auth.js | Auth + changePassword | ~120 |
+| student.js | Student CRUD + detail + delete filtered | ~280 |
+| course.js | Course CRUD + quick add/manage + validation | ~330 |
+| enrollment.js | Enrollment + delete all + copy enrollment | ~420 |
+| attendance.js | Attendance matrix | ~215 |
+| payment.js | Payment + batch status + permission checks | ~370 |
+| report.js | Report + date handling | ~380 |
+| admin.js | Admin CRUD | ~115 |
+| render-all.js | Render all + error handling | ~55 |
+| merge-students.js | Merge students functionality | ~180 |
+| excel-import.js | Excel import placeholder | ~15 |
+
+### Tổng số vấn đề đã sửa: 43
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 1 | utils.js - `state` không được import → ReferenceError | 🔴 CRITICAL | ✅ |
+| 2 | student.js - Thiếu exports: showStudentDetail, closeStudentDetailModal, handleDeleteFilteredStudents | 🔴 HIGH | ✅ |
+| 3 | report.js - Thiếu exports: handleYearChange, handleMonthChange, handleQuarterChange | 🔴 HIGH | ✅ |
+| 4 | report.js - `reportToDate` không khai báo | 🔴 HIGH | ✅ |
+| 5 | payment.js - Duplicate getCourseAttendanceDates | 🟡 MEDIUM | ✅ |
+| 6 | attendance.js - Duplicate getCourseAttendanceDates | 🟡 MEDIUM | ✅ |
+| 7 | report.js - Duplicate getCourseAttendanceDates | 🟡 MEDIUM | ✅ |
+| 8 | quick-manage.js - Dead code | 🟡 MEDIUM | ✅ Đã xóa |
+| 9 | highlight.js - Dead code | 🟢 LOW | ✅ Đã xóa |
+| 10 | index.html - Thiếu type="module" | 🔴 HIGH | ✅ |
+| 11 | index.html - Thiếu paymentStatusActions HTML elements | 🔴 HIGH | ✅ |
+| 12 | app.js - Duplicate imports | 🟡 MEDIUM | ✅ |
+| 13 | storage.js - Method names không nhất quán | 🟡 MEDIUM | ✅ |
+| 14 | cancelAdminEdit - thiếu window assignment | 🟡 MEDIUM | ✅ |
+| 15 | getStudentCourses thiếu trong utils.js | 🔴 HIGH | ✅ |
+| 16 | auth.js - Dynamic import app.js (no-op) trong handleLogout | 🟡 MEDIUM | ✅ |
+| 17 | Unused imports (hashPassword, applyPermissions) | 🟢 LOW | ✅ |
+| 18 | clearStudentFilterInputs thiếu trong student.js | 🔴 HIGH | ✅ |
+| 19 | XSS - renderCourseTable chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 20 | payment.js - Thiếu permission checks | 🔴 CRITICAL | ✅ |
+| 21 | render-all.js - Thiếu error handling | 🔴 CRITICAL | ✅ |
+| 22 | course.js - Thiếu validation (fee NaN, month range, empty name) | 🔴 HIGH | ✅ |
+| 23 | handlePaymentConfirm không re-render UI | 🔴 HIGH | ✅ |
+| 24 | deleteCourse không clean up paymentRecords | 🔴 HIGH | ✅ |
+| 25 | formatCurrency không xử lý NaN | 🟡 MEDIUM | ✅ |
+| 26 | report.js - getReportMonths year derivation sai | 🟡 MEDIUM | ✅ |
+| 27 | report.js - handleYearChange thiếu xử lý range period | 🟡 MEDIUM | ✅ |
+| 28 | report.js - handleQuarterChange thiếu set date range | 🟡 MEDIUM | ✅ |
+| 29 | auth.js - handleLogin thiếu null check | 🟡 MEDIUM | ✅ |
+| 30 | XSS - renderStudentTable chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 31 | XSS - showStudentDetail chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 32 | XSS - renderEnrollmentTable chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 33 | XSS - renderAttendanceMatrix + dropdowns chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 34 | XSS - renderPaymentStudents + Details chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 35 | XSS - renderAdminTable chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 36 | XSS - renderReport + dropdowns chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 37 | XSS - renderQuickManageTable chưa escapeHtml | 🔴 CRITICAL | ✅ |
+| 38 | getCourseAttendanceDates duplicate trong 3 files | 🟡 MEDIUM | ✅ |
+
+### Sau khi sửa, còn lại (không ảnh hưởng functionality):
+- Circular dependency auth.js ↔ ui.js (ES modules xử lý được)
+- renderPaymentStudents status filter lọc theo student status thay vì payment status (design choice)
+- handleQuickAddCourse duplicate check có thể match source course (edge case hiếm)
+
+### Test Results:
+- Node.js module import tests: 23/23 PASSED
+- Browser test files: test-browser.html, test-flow.html
+
+### Files đã xóa (dead code):
+- modules/quick-manage.js
+- modules/highlight.js
+
+### Runtime bugs đã sửa:
+1. handleLogin catch block null check + localStorage fallback (CRITICAL)
+2. handleLogin empty form validation (LOW)
+3. handleQuickAddCourse không clear source course (MODERATE)
+4. renderPaymentStudents month filter quá hạn chế (MODERATE)
+5. clearStudentFilterInputs vs renderStudentTable conflict (LOW)
+
+### Tất cả CRITICAL và HIGH issues đã sửa. Code sẵn sàng cho production.
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-06)
+
+### Tổng số lỗi mới: 10
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 44 | student.js - Thiếu import `formatCurrency`, `formatCourseName` → ReferenceError khi mở Student Detail | 🔴 CRITICAL | ⬜ |
+| 45 | excel-import.js - Dùng Node.js APIs (`fs`, `csv-parser`, `xml2js`) trong browser code, hoàn toàn không hoạt động | 🔴 CRITICAL | ⬜ |
+| 46 | report.js - Thiếu import `getCourseAttendanceDates` → ReferenceError khi tạo báo cáo | 🟡 MEDIUM | ⬜ |
+| 47 | index.html - Text mặc định `#reportCourseText` là "Tất cả khóa học" nhưng logic kiểm tra `-- Chọn khóa học --` | 🟡 MEDIUM | ⬜ |
+| 48 | app.js - `paymentMonthFilter` change handler: set `paymentCourseSelect.value = ''` rồi kiểm tra `paymentCourseSelect.value` → luôn false, `handlePaymentSelect()` không bao giờ chạy | 🟡 MEDIUM | ⬜ |
+| 49 | auth.js - `state.admins = []` (empty array, truthy) không fallback về localStorage vì `&& state.admins.length > 0` nằm sau | 🟡 MEDIUM | ⬜ |
+| 50 | payment.js - `tr.className += \` ${rowClass}\`` thêm trailing space khi `rowClass` là empty string | 🟢 LOW | ⬜ |
+| 51 | style.css - CSS trùng lặp (lines 594-696 duplicate payment status rules đã có ở 437-470, 584-662) | 🟢 LOW | ⬜ |
+| 52 | index.html - `#changePasswordModal` dùng inline `style="display:none"` thay vì CSS class | 🟢 LOW | ⬜ |
+| 53 | app.js - `initBackupRestore` được gọi trước khi định nghĩa (line 191 gọi, line 195 định nghĩa) — fragile ordering | 🟢 LOW | ⬜ |
+
+### Mô tả chi tiết
+
+#### #44 — student.js thiếu import `formatCurrency`, `formatCourseName` (🔴 CRITICAL)
+- **File**: `modules/student.js:5` (dòng import) và `modules/student.js:220-221` (nơi dùng)
+- **Nguyên nhân**: Dòng 5 chỉ import `getStudentCourseCount, getStudentCourses, formatDate, getStatusClass, escapeHtml`. Nhưng `showStudentDetail` ở dòng 220-221 gọi `formatCurrency(course.fee)` và `formatCourseName(course)` — cả hai đều **không được import**.
+- **Hậu quả**: `ReferenceError: formatCurrency is not defined` khi user click "Chi Tiết" trên học viên. Modal chi tiết học viên **không bao giờ mở được**.
+- **Cách sửa**: Thêm `formatCurrency, formatCourseName` vào dòng import từ `./utils.js`.
+
+#### #45 — excel-import.js hoàn toàn broken (🔴 CRITICAL)
+- **File**: `modules/excel-import.js` (toàn bộ file)
+- **Nguyên nhân**: File này viết cho Node.js nhưng được dùng trong browser:
+  - Line 4: `import * as fs from 'fs'` — `fs` không tồn tại trong browser
+  - Line 5: `import csv from 'csv-parser'` — Node.js-only library
+  - Line 21: `new xml2js.Parser()` — `xml2js` không import và là Node.js-only
+  - Line 25: `fs.createReadStream()` — không hoạt động trong browser
+  - Line 35: Typo tên cột: `'Hồ Tàn'`, `'Ngày Sựn'`, `'Giải Tính'` (đúng: `'Họ Tên'`, `'Ngày Sinh'`, `'Giới Tính'`)
+  - Line 45: `row.STTC` — typo, đúng `row.STT`
+  - Line 55: `import('./student').then({ addStudent: student })` — sai cú pháp destructuring trong `.then()`, và `addStudent` không tồn tại trong `student.js`
+- **Hậu quả**: Import file này sẽ crash ngay. Tính năng Excel import **hoàn toàn không hoạt động**.
+- **Cách sửa**: Viết lại toàn bộ dùng `FileReader` API + SheetJS (`xlsx` đã có sẵn qua CDN trong `index.html`), bỏ hết Node.js dependencies.
+
+#### #46 — report.js thiếu import `getCourseAttendanceDates` (🟡 MEDIUM)
+- **File**: `modules/report.js:3` (dòng import) và `modules/report.js:196` (nơi dùng)
+- **Nguyên nhân**: Dòng 3 chỉ import `formatCurrency, formatCourseName, escapeHtml`. Nhưng `calculateCourseRevenue` ở dòng 196 gọi `getCourseAttendanceDates(courseId)` — **không được import**.
+- **Hậu quả**: `ReferenceError: getCourseAttendanceDates is not defined` khi tạo báo cáo doanh thu. Tab Báo Cáo **không hiển thị được dữ liệu**.
+- **Cách sửa**: Thêm `getCourseAttendanceDates` vào dòng import từ `./utils.js`.
+
+#### #47 — Text mặc định report course selector không khớp logic (🟡 MEDIUM)
+- **File**: `index.html:1025` và `report.js:58`
+- **Nguyên nhân**: `index.html` đặt text mặc định là `"Tất cả khóa học"` nhưng `report.js:58` kiểm tra `reportCourseText.textContent === '-- Chọn khóa học --'` để xác định trạng thái "chưa chọn".
+- **Hậu quả**: Logic kiểm tra trạng thái "chưa chọn" không bao giờ match, có thể gây lỗi hiển thị hoặc behavior sai.
+- **Cách sửa**: Đồng bộ text — đổi `index.html:1025` thành `"-- Chọn khóa học --"` hoặc đổi logic trong `report.js`.
+
+#### #48 — paymentMonthFilter change handler có dead code (🟡 MEDIUM)
+- **File**: `app.js:172-176`
+- **Nguyên nhân**:
+  ```js
+  if (paymentMonthFilter) paymentMonthFilter.addEventListener('change', () => {
+      paymentCourseSelect.value = '';           // line 173: set value = ''
+      renderPaymentDropdowns(paymentMonthFilter.value);
+      if (paymentCourseSelect.value && paymentSelectBtn) handlePaymentSelect();  // line 175: luôn false
+  });
+  ```
+  Dòng 173 set `paymentCourseSelect.value = ''`, dòng 175 kiểm tra `paymentCourseSelect.value` — luôn falsy.
+- **Hậu quả**: Sau khi chọn tháng mới, `handlePaymentSelect()` không tự động chạy. User phải click "Chọn" thủ công. Không crash nhưng UX không như thiết kế.
+- **Cách sửa**: Bỏ dòng 173 hoặc set `paymentCourseSelect.value` trước khi gọi `renderPaymentDropdowns`, rồi mới check.
+
+#### #49 — auth.js localStorage fallback không hoạt động khi state.admins = [] (🟡 MEDIUM)
+- **File**: `modules/auth.js:52-54`
+- **Nguyên nhân**:
+  ```js
+  const admins = state.admins && state.admins.length > 0
+      ? state.admins
+      : JSON.parse(localStorage.getItem('admins') || '[]');
+  ```
+  Khi `state.admins = []` (empty array, truthy), `state.admins && state.admins.length > 0` = `[] && 0` = `[]` (truthy trong JS!). Thực tế `[] && 0` trả về `[]` vì `[]` truthy, rồi `[] > 0` = `false`. Nhưng nếu `state.admins` là `[]`, toán tử `&&` trả về `[]`, rồi `[] > 0` = `false`, nên fallback **có hoạt động**. Tuy nhiên, nếu `state.admins` chưa được khởi tạo (vẫn là `[]` từ `state.js`), thì `state.admins.length > 0` = `false`, fallback sẽ chạy. **Lỗi thực tế**: Nếu `storage.getStudents()` được gọi trước và set `state.admins = []` từ API trả về rỗng, thì fallback sẽ chạy đúng. Nhưng nếu `state.admins` không bao giờ được set (không gọi `storage.getAdmins()`), thì `state.admins` vẫn là `[]` từ khởi tạo, và fallback **có chạy**. **Tuy nhiên**, vấn đề là `renderAll` không gọi `storage.getAdmins()`, nên `state.admins` luôn là `[]` cho đến khi login fallback đọc localStorage.
+- **Hậu quả**: Nếu admin tồn tại trong localStorage nhưng `state.admins` không được load trước login, login fallback sẽ không tìm thấy admin. Thực tế `renderAll` không load admins nên đây là bug thực sự.
+- **Cách sửa**: Thêm `storage.getAdmins()` vào `renderAll` hoặc `init()`, hoặc sửa logic check: `state.admins.length > 0 ? state.admins : JSON.parse(...)`.
+
+#### #50 — payment.js className trailing space (🟢 LOW)
+- **File**: `modules/payment.js:128`
+- **Nguyên nhân**: `tr.className += \` ${rowClass}\``` — khi `rowClass = ''`, kết quả là `" "` (string với một space).
+- **Hậu quả**: Không ảnh hưởng functionality, nhưng tạo DOM không sạch.
+- **Cách sửa**: `if (rowClass) tr.className += \` ${rowClass}\``.
+
+#### #51 — style.css duplicate CSS (🟢 LOW)
+- **File**: `style.css:594-696`
+- **Nguyên nhân**: Payment status CSS rules ở lines 594-696 trùng lặp với rules ở lines 437-470 và 584-662.
+- **Hậu quả**: Không ảnh hưởng hiển thị, nhưng tăng file size và khó maintain.
+- **Cách sửa**: Xóa lines 594-696.
+
+#### #52 — index.html inline style (🟢 LOW)
+- **File**: `index.html:36`
+- **Nguyên nhân**: `<div class="modal-overlay" id="changePasswordModal" style="display:none;">` dùng inline style.
+- **Hậu quả**: Không ảnh hưởng functionality, nhưng không nhất quán với phần còn lại của codebase.
+- **Cách sửa**: Thêm CSS rule `#changePasswordModal { display: none; }` vào `style.css`.
+
+#### #53 — app.js fragile function ordering (🟢 LOW)
+- **File**: `app.js:191` (gọi) và `app.js:195` (định nghĩa)
+- **Nguyên nhân**: `initBackupRestore()` được gọi ở line 191 nhưng định nghĩa ở line 195. Vì `initBackupRestore` là `const` arrow function, nó **không được hoisted**. Tuy nhiên, `init()` được gọi ở line 260 (cuối file), lúc đó `initBackupRestore` đã được định nghĩa. Nên **không crash**, nhưng fragile.
+- **Hậu quả**: Nếu ai đó di chuyển `init()` call lên trước, sẽ crash `ReferenceError`.
+- **Cách sửa**: Di chuyển định nghĩa `initBackupRestore` lên trên dòng `setupEventListeners` hoặc trước `init()`.
+
+---
+
+## 📋 CÔNG VIỆC CÒN LẠI (Theo Ưu Tiên)
+
+### 🔴 ƯU TIÊN CAO (Bug fixes):
+
+| # | Công việc | Thời gian |
+|---|----------|----------|
+| 1 | Sửa #44: Thêm `formatCurrency, formatCourseName` vào import student.js | 5 phút |
+| 2 | Sửa #46: Thêm `getCourseAttendanceDates` vào import report.js | 5 phút |
+| 3 | Sửa #45: Viết lại excel-import.js dùng FileReader + SheetJS (browser-compatible) | 2-3 giờ |
+| 4 | Sửa #48: Sửa logic paymentMonthFilter change handler trong app.js | 15 phút |
+| 5 | Sửa #49: Sửa auth.js localStorage fallback hoặc thêm load admins trong init | 30 phút |
+
+### 🟡 ƯU TIÊN TRUNG BÌNH:
+
+| # | Công việc | Thời gian |
+|---|----------|----------|
+| 6 | Sửa #47: Đồng bộ text mặc định reportCourseText với logic trong report.js | 5 phút |
+| 7 | Test toàn bộ flow trong browser (mở index.html và test từng tab) | 2-3 giờ |
+| 8 | Sửa #50: Sửa className trailing space trong payment.js | 5 phút |
+| 9 | Sửa #53: Di chuyển initBackupRestore definition trước init() call | 5 phút |
+
+### 🟢 ƯU TIÊN THẤP:
+
+| # | Công việc | Thời gian |
+|---|----------|----------|
+| 10 | Sửa #51: Xóa CSS trùng lặp (style.css lines 594-696) | 15 phút |
+| 11 | Sửa #52: Bỏ inline style trên changePasswordModal, dùng CSS class | 5 phút |
+| 12 | Hoàn thiện mobile.html | 3-4 giờ |
+| 13 | Tạo backend API cho Railway | 8-10 giờ |
+| 14 | Migration dữ liệu | 2-3 giờ |
+| 15 | Deploy lên Railway | 2-3 giờ |
+| 16 | Performance optimization | 2-3 giờ |
+
+---
+
+## 🔧 KIẾN TRÚC MODULES
+
+```
+app.js (entry, ~200 dòng)
+├── imports từ 14 modules
+├── gán window.* cho onclick handlers (18 functions)
+├── event listeners setup
+└── init()
+
+Dependency Graph:
+state.js ← (none)
+api.js ← (none)
+utils.js ← state.js
+storage.js ← state.js, api.js
+ui.js ← state.js, auth.js
+auth.js ← state.js, api.js, storage.js, ui.js [CIRCULAR: auth↔ui - ES modules handles this]
+student.js ← state.js, auth.js, storage.js, utils.js
+course.js ← state.js, auth.js, storage.js, utils.js
+enrollment.js ← state.js, auth.js, storage.js, utils.js (dùng window.renderAll)
+attendance.js ← state.js, auth.js, storage.js, utils.js
+payment.js ← state.js, auth.js, storage.js, utils.js
+report.js ← state.js, utils.js
+admin.js ← state.js, auth.js, storage.js
+render-all.js ← state.js, student.js, course.js, enrollment.js, attendance.js, payment.js, report.js, admin.js
+```

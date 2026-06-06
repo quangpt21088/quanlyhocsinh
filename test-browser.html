@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Browser Test - Quản Lý Học Viên</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .suite { margin: 10px 0; padding: 10px; background: #252526; border-radius: 4px; }
+        .suite h3 { margin: 0 0 10px 0; color: #569cd6; }
+        .test { padding: 4px 8px; margin: 2px 0; border-radius: 2px; font-size: 13px; }
+        .pass { background: #0d3d0d; color: #4ec9b0; }
+        .fail { background: #3d0d0d; color: #f44747; }
+        .warn { background: #3d3d0d; color: #dcdcaa; }
+        .info { background: #1e3d5c; color: #9cdcfe; }
+        #summary { margin-top: 20px; padding: 15px; background: #2d2d2d; border-radius: 4px; font-size: 1.2em; }
+        #summary.all-pass { border-left: 4px solid #4ec9b0; }
+        #summary.has-fail { border-left: 4px solid #f44747; }
+        .btn { padding: 8px 16px; margin: 4px; border: none; border-radius: 4px; cursor: pointer; background: #0e639c; color: #fff; font-size: 14px; }
+        .btn:hover { background: #1177bb; }
+        #clearBtn { background: #666; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Browser Test Flow - Quản Lý Học Viên</h1>
+    <button class="btn" onclick="runAllTests()">▶ Run All Tests</button>
+    <button class="btn" id="clearBtn" onclick="clearResults()">🗑 Clear</button>
+    <div id="results"></div>
+    <div id="summary"></div>
+
+    <script type="module">
+        import { state, resetEditStates } from './modules/state.js';
+        import { formatCurrency, formatDate, getStatusClass, escapeHtml, formatCourseName, getStudentCourseCount, getCourseEnrollmentCount, getStudentCourses, getCourseAttendanceDates } from './modules/utils.js';
+        import { checkPermission } from './modules/auth.js';
+        import { applyPermissions } from './modules/ui.js';
+
+        let results = [];
+        let passed = 0, failed = 0, warnings = 0;
+
+        function log(msg, type = 'info') {
+            results.push({ msg, type });
+            if (type === 'pass') passed++;
+            if (type === 'fail') failed++;
+            if (type === 'warn') warnings++;
+        }
+
+        function assert(condition, msg) {
+            if (condition) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}`, 'fail');
+        }
+
+        function assertEqual(actual, expected, msg) {
+            if (actual === expected) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}: expected "${expected}", got "${actual}"`, 'fail');
+        }
+
+        function assertIncludes(str, substr, msg) {
+            if (str && str.includes(substr)) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}: "${str}" does not include "${substr}"`, 'fail');
+        }
+
+        function assertNullish(val, msg) {
+            if (val === null || val === undefined) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}: expected nullish, got "${val}"`, 'fail');
+        }
+
+        function assertTruthy(val, msg) {
+            if (val) log(`✅ ${msg}`, 'pass');
+            else log(`❌ ${msg}: expected truthy, got "${val}"`, 'fail');
+        }
+
+        window.runAllTests = async function() {
+            results = [];
+            passed = 0;
+            failed = 0;
+            warnings = 0;
+
+            // Reset state
+            resetEditStates();
+            state.students = [];
+            state.courses = [];
+            state.enrollments = [];
+            state.attendances = [];
+            state.paymentRecords = [];
+            state.admins = [];
+            state.currentAdmin = null;
+
+            // ===== SUITE 1: State & Utilities =====
+            log('═══ SUITE 1: State & Utilities ═══', 'info');
+
+            // State structure
+            assert(Array.isArray(state.students), 'state.students is array');
+            assert(Array.isArray(state.courses), 'state.courses is array');
+            assert(Array.isArray(state.enrollments), 'state.enrollments is array');
+            assert(Array.isArray(state.attendances), 'state.attendances is array');
+            assert(Array.isArray(state.paymentRecords), 'state.paymentRecords is array');
+            assert(Array.isArray(state.admins), 'state.admins is array');
+            assertEqual(state.students.length, 0, 'Initial students empty');
+
+            // formatCurrency
+            assertEqual(formatCurrency(1000000), '1,000,000 ₫', 'formatCurrency(1000000)');
+            assertEqual(formatCurrency(0), '0 ₫', 'formatCurrency(0)');
+            assertEqual(formatCurrency(NaN), '0 ₫', 'formatCurrency(NaN) returns 0 ₫');
+            assertEqual(formatCurrency(null), '0 ₫', 'formatCurrency(null) returns 0 ₫');
+            assertEqual(formatCurrency(undefined), '0 ₫', 'formatCurrency(undefined) returns 0 ₫');
+
+            // formatDate
+            const dateResult = formatDate('2026-01-15');
+            assert(dateResult !== '-', 'formatDate valid returns date');
+            assertEqual(formatDate(''), '-', 'formatDate empty returns dash');
+            assertEqual(formatDate(null), '-', 'formatDate null returns dash');
+
+            // getStatusClass
+            assertEqual(getStatusClass('Đang học'), 'status-active', 'getStatusClass Đang học');
+            assertEqual(getStatusClass('Tạm nghỉ'), 'status-inactive', 'getStatusClass Tạm nghỉ');
+            assertEqual(getStatusClass('Đã tốt nghiệp'), 'status-graduated', 'getStatusClass Đã tốt nghiệp');
+            assertEqual(getStatusClass('Unknown'), '', 'getStatusClass unknown returns empty');
+
+            // escapeHtml
+            assertEqual(escapeHtml('<script>'), '&lt;script&gt;', 'escapeHtml escapes tags');
+            assertEqual(escapeHtml(''), '', 'escapeHtml empty string returns empty');
+            assertEqual(escapeHtml('Hello & World'), 'Hello &amp; World', 'escapeHtml escapes ampersand');
+
+            // formatCourseName
+            assertEqual(formatCourseName({ name: 'Test', month: 6 }), 'Test - Tháng 6', 'formatCourseName with month');
+            assertEqual(formatCourseName({ name: 'Test' }), 'Test', 'formatCourseName without month');
+            assertEqual(formatCourseName(null), '', 'formatCourseName null returns empty');
+
+            // resetEditStates
+            state.editingStudentId = 'test';
+            resetEditStates();
+            assertNullish(state.editingStudentId, 'resetEditStates clears editingStudentId');
+
+            // ===== SUITE 2: Data Creation =====
+            log('═══ SUITE 2: Data Creation ═══', 'info');
+
+            state.students = [
+                { id: 's1', name: 'Nguyễn Văn A', phone: '0901234567', email: 'a@test.com', status: 'Đang học' },
+                { id: 's2', name: 'Trần Thị B', phone: '0912345678', email: 'b@test.com', status: 'Đang học' },
+                { id: 's3', name: 'Lê Văn C', phone: '0923456789', email: '', status: 'Tạm nghỉ' },
+            ];
+            assertEqual(state.students.length, 3, 'Created 3 students');
+
+            state.courses = [
+                { id: 'c1', name: 'Tiếng Anh Cơ Bản', instructor: 'Thầy D', month: 6, fee: 500000, maxStudents: 30, status: 'Đang mở' },
+                { id: 'c2', name: 'Toán Nâng Cao', instructor: 'Cô E', month: 7, fee: 600000, maxStudents: 25, status: 'Đang mở' },
+            ];
+            assertEqual(state.courses.length, 2, 'Created 2 courses');
+
+            // ===== SUITE 3: Business Logic =====
+            log('═══ SUITE 3: Business Logic ═══', 'info');
+
+            state.enrollments = [
+                { id: 'e1', studentId: 's1', courseId: 'c1', date: '2026-06-01' },
+                { id: 'e2', studentId: 's2', courseId: 'c1', date: '2026-06-02' },
+            ];
+            assertEqual(getStudentCourseCount('s1'), 1, 's1 has 1 course');
+            assertEqual(getStudentCourseCount('s2'), 1, 's2 has 1 course');
+            assertEqual(getStudentCourseCount('s3'), 0, 's3 has 0 courses');
+            assertEqual(getCourseEnrollmentCount('c1'), 2, 'c1 has 2 enrollments');
+            assertEqual(getCourseEnrollmentCount('c2'), 0, 'c2 has 0 enrollments');
+
+            const s1Courses = getStudentCourses('s1');
+            assertEqual(s1Courses.length, 1, 'getStudentCourses s1 returns 1');
+            assertIncludes(s1Courses[0], 'Tiếng Anh', 'getStudentCourses includes course name');
+
+            // Attendance
+            state.attendances = [
+                { id: 'a1', courseId: 'c1', date: '2026-06-01', studentId: 's1', present: true },
+                { id: 'a2', courseId: 'c1', date: '2026-06-01', studentId: 's2', present: false },
+                { id: 'a3', courseId: 'c1', date: '2026-06-02', studentId: 's1', present: true },
+            ];
+            const c1Dates = getCourseAttendanceDates('c1');
+            assertEqual(c1Dates.length, 2, 'c1 has 2 attendance dates');
+
+            // ===== SUITE 4: CRUD Operations =====
+            log('═══ SUITE 4: CRUD Operations ═══', 'info');
+
+            // Update student
+            const s1Idx = state.students.findIndex(s => s.id === 's1');
+            state.students[s1Idx] = { ...state.students[s1Idx], name: 'Nguyễn Văn A Updated' };
+            assertEqual(state.students[0].name, 'Nguyễn Văn A Updated', 'Updated student name');
+
+            // Delete student
+            state.students = state.students.filter(s => s.id !== 's2');
+            assertEqual(state.students.length, 2, 'Deleted s2, 2 students remain');
+
+            // Duplicate enrollment check
+            const isDup = state.enrollments.some(e => e.studentId === 's1' && e.courseId === 'c1');
+            assert(isDup, 'Duplicate enrollment detection works');
+
+            // ===== SUITE 5: Permissions =====
+            log('═══ SUITE 5: Permissions ═══', 'info');
+
+            state.currentAdmin = { role: 'super' };
+            assert(checkPermission('students', 'view'), 'Super can view');
+            assert(checkPermission('students', 'delete'), 'Super can delete');
+            assert(checkPermission('payment', 'edit'), 'Super can edit payment');
+
+            state.currentAdmin = { role: 'admin', permissions: { students: { view: true, add: false, edit: true, delete: false }, payment: { view: true, add: false, edit: false, delete: false } } };
+            assert(checkPermission('students', 'view'), 'Admin can view students');
+            assert(!checkPermission('students', 'add'), 'Admin cannot add students');
+            assert(checkPermission('students', 'edit'), 'Admin can edit students');
+            assert(!checkPermission('students', 'delete'), 'Admin cannot delete students');
+            assert(!checkPermission('payment', 'edit'), 'Admin cannot edit payment');
+
+            state.currentAdmin = null;
+            assert(!checkPermission('students', 'view'), 'Null admin has no permissions');
+
+            // ===== SUITE 6: XSS Prevention =====
+            log('═══ SUITE 6: XSS Prevention ═══', 'info');
+
+            state.students = [
+                { id: 'sxss', name: '<script>alert("xss")</script>', phone: '000', status: 'Đang học' },
+            ];
+            const escapedName = escapeHtml(state.students[0].name);
+            assert(!escapedName.includes('<script>'), 'escapeHtml prevents XSS in names');
+            assert(escapedName.includes('&lt;script&gt;'), 'escapeHtml properly encodes tags');
+
+            // ===== SUITE 7: Payment Flow =====
+            log('═══ SUITE 7: Payment Flow ═══', 'info');
+
+            state.currentAdmin = { role: 'super' };
+            state.paymentRecords = [
+                { studentId: 's1', courseId: 'c1', month: '6', status: 'Chưa thanh toán', method: '' },
+            ];
+            assertEqual(state.paymentRecords.length, 1, 'Payment record created');
+            assertEqual(state.paymentRecords[0].status, 'Chưa thanh toán', 'Initial payment status');
+
+            // Update payment
+            state.paymentRecords[0].status = 'Đã thanh toán';
+            state.paymentRecords[0].method = 'Tiền mặt';
+            assertEqual(state.paymentRecords[0].status, 'Đã thanh toán', 'Payment status updated');
+
+            // Course enrollment count after enrollment
+            assertEqual(getCourseEnrollmentCount('c1'), 2, 'c1 still has 2 enrollments');
+
+            // ===== SUITE 8: Course Delete with Cleanup =====
+            log('═══ SUITE 8: Data Cleanup ═══', 'info');
+
+            // Enroll s3 in c2
+            state.enrollments.push({ id: 'e3', studentId: 's3', courseId: 'c2', date: '2026-07-01' });
+            state.attendances.push({ id: 'a4', courseId: 'c2', date: '2026-07-01', studentId: 's3', present: true });
+            state.paymentRecords.push({ studentId: 's3', courseId: 'c2', month: '7', status: 'Chưa thanh toán' });
+
+            // Before delete
+            assertEqual(state.enrollments.filter(e => e.courseId === 'c2').length, 1, 'c2 has 1 enrollment before delete');
+            assertEqual(state.attendances.filter(a => a.courseId === 'c2').length, 1, 'c2 has 1 attendance before delete');
+            assertEqual(state.paymentRecords.filter(r => r.courseId === 'c2').length, 1, 'c2 has 1 payment before delete');
+
+            // Delete course c2
+            state.enrollments = state.enrollments.filter(e => e.courseId !== 'c2');
+            state.attendances = state.attendances.filter(a => a.courseId !== 'c2');
+            state.paymentRecords = state.paymentRecords.filter(r => r.courseId !== 'c2');
+            state.courses = state.courses.filter(c => c.id !== 'c2');
+
+            assertEqual(state.enrollments.filter(e => e.courseId === 'c2').length, 0, 'c2 enrollments cleaned up');
+            assertEqual(state.attendances.filter(a => a.courseId === 'c2').length, 0, 'c2 attendances cleaned up');
+            assertEqual(state.paymentRecords.filter(r => r.courseId === 'c2').length, 0, 'c2 payments cleaned up');
+            assertEqual(state.courses.length, 1, 'c2 deleted, 1 course remains');
+
+            // c1 data should be intact
+            assertEqual(state.enrollments.filter(e => e.courseId === 'c1').length, 2, 'c1 enrollments intact');
+            assertEqual(state.attendances.filter(a => a.courseId === 'c1').length, 3, 'c1 attendances intact');
+            assertEqual(state.paymentRecords.filter(r => r.courseId === 'c1').length, 1, 'c1 payments intact');
+
+            // ===== SUITE 9: DOM Elements Check =====
+            log('═══ SUITE 9: DOM Elements Check ═══', 'info');
+
+            // Check critical DOM elements exist
+            const criticalElements = [
+                'loginOverlay', 'appLayout', 'loginForm', 'loginError',
+                'studentForm', 'studentTable', 'studentTableBody',
+                'courseForm', 'courseTableBody',
+                'enrollmentForm', 'enrollmentTableBody',
+                'attendCourse', 'attendanceMatrixSection',
+                'paymentCourseSelect', 'paymentStudentTableBody',
+                'reportPeriod', 'reportYear',
+                'adminForm', 'adminTableBody',
+            ];
+
+            criticalElements.forEach(id => {
+                const el = document.getElementById(id);
+                assert(!!el, `DOM element #${id} exists`);
+            });
+
+            // ===== SUITE 10: Format Edge Cases =====
+            log('═══ SUITE 10: Edge Cases ═══', 'info');
+
+            // formatCurrency edge cases
+            assertEqual(formatCurrency(999), '999 ₫', 'formatCurrency 999');
+            assertEqual(formatCurrency(1), '1 ₫', 'formatCurrency 1');
+            assertEqual(formatCurrency(-1000), '-1,000 ₫', 'formatCurrency negative');
+            assertEqual(formatCurrency(999999999), '999,999,999 ₫', 'formatCurrency large number');
+
+            // getStatusClass edge cases
+            assertEqual(getStatusClass(''), '', 'getStatusClass empty string');
+            assertEqual(getStatusClass(undefined), '', 'getStatusClass undefined');
+            assertEqual(getStatusClass(null), '', 'getStatusClass null');
+
+            // escapeHtml edge cases
+            assertEqual(escapeHtml('"Hello"'), '&quot;Hello&quot;', 'escapeHtml quotes');
+            assertEqual(escapeHtml("It's"), 'It&#039;s', 'escapeHtml apostrophe');
+
+            // Reset state
+            state.students = [];
+            state.courses = [];
+            state.enrollments = [];
+            state.attendances = [];
+            state.paymentRecords = [];
+            state.admins = [];
+            state.currentAdmin = null;
+
+            // ===== RENDER RESULTS =====
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            const suites = {};
+            let currentSuite = '';
+            results.forEach(r => {
+                if (r.msg.startsWith('═══ SUITE')) {
+                    currentSuite = r.msg.replace(/═══ /g, '').replace(/ ═══/g, '');
+                    suites[currentSuite] = [];
+                } else if (currentSuite) {
+                    suites[currentSuite].push(r);
+                }
+            });
+
+            Object.entries(suites).forEach(([suite, items]) => {
+                const suiteDiv = document.createElement('div');
+                suiteDiv.className = 'suite';
+                const suitePass = items.filter(i => i.type === 'fail').length === 0;
+                suiteDiv.innerHTML = `<h3>${suitePass ? '✅' : '❌'} ${suite}</h3>`;
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `test ${item.type}`;
+                    div.textContent = item.msg;
+                    suiteDiv.appendChild(div);
+                });
+                resultsDiv.appendChild(suiteDiv);
+            });
+
+            const summaryDiv = document.getElementById('summary');
+            const allPassed = failed === 0;
+            summaryDiv.className = allPassed ? 'all-pass' : 'has-fail';
+            summaryDiv.innerHTML = `
+                <div style="color: ${allPassed ? '#4ec9b0' : '#f44747'}">
+                    ${allPassed ? '🎉 ALL TESTS PASSED!' : `⚠️ ${failed} TEST(S) FAILED`}
+                </div>
+                <div style="margin-top:8px">
+                    Total: ${passed + failed + warnings} |
+                    <span style="color:#4ec9b0">Passed: ${passed}</span> |
+                    <span style="color:#f44747">Failed: ${failed}</span> |
+                    <span style="color:#dcdcaa">Warnings: ${warnings}</span>
+                </div>
+            `;
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+            document.getElementById('summary').className = '';
+        };
+    </script>
+</body>
+</html>
