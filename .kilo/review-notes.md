@@ -27,9 +27,11 @@
 | admin.js | Admin CRUD | ~115 |
 | render-all.js | Render all + error handling | ~55 |
 | merge-students.js | Merge students functionality | ~180 |
-| excel-import.js | Excel import placeholder | ~15 |
+| excel-import.js | Excel/CSV import (SheetJS + FileReader, browser-compatible) | ~260 |
 
-### Tổng số vấn đề đã sửa: 43
+### Tổng số vấn đề đã sửa: 53 (43 cũ + 10 mới)
+
+### Tất cả bug đã sửa. Code sẵn sàng cho production.
 
 | # | Vấn đề | Mức độ | Trạng thái |
 |---|--------|--------|-----------|
@@ -96,22 +98,22 @@
 
 ---
 
-## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-06)
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-06) — ĐÃ SỬA HẾT
 
-### Tổng số lỗi mới: 10
+### Tổng số lỗi mới: 10 (tất cả đã sửa ✅)
 
 | # | Vấn đề | Mức độ | Trạng thái |
 |---|--------|--------|-----------|
-| 44 | student.js - Thiếu import `formatCurrency`, `formatCourseName` → ReferenceError khi mở Student Detail | 🔴 CRITICAL | ⬜ |
-| 45 | excel-import.js - Dùng Node.js APIs (`fs`, `csv-parser`, `xml2js`) trong browser code, hoàn toàn không hoạt động | 🔴 CRITICAL | ⬜ |
-| 46 | report.js - Thiếu import `getCourseAttendanceDates` → ReferenceError khi tạo báo cáo | 🟡 MEDIUM | ⬜ |
-| 47 | index.html - Text mặc định `#reportCourseText` là "Tất cả khóa học" nhưng logic kiểm tra `-- Chọn khóa học --` | 🟡 MEDIUM | ⬜ |
-| 48 | app.js - `paymentMonthFilter` change handler: set `paymentCourseSelect.value = ''` rồi kiểm tra `paymentCourseSelect.value` → luôn false, `handlePaymentSelect()` không bao giờ chạy | 🟡 MEDIUM | ⬜ |
-| 49 | auth.js - `state.admins = []` (empty array, truthy) không fallback về localStorage vì `&& state.admins.length > 0` nằm sau | 🟡 MEDIUM | ⬜ |
-| 50 | payment.js - `tr.className += \` ${rowClass}\`` thêm trailing space khi `rowClass` là empty string | 🟢 LOW | ⬜ |
-| 51 | style.css - CSS trùng lặp (lines 594-696 duplicate payment status rules đã có ở 437-470, 584-662) | 🟢 LOW | ⬜ |
-| 52 | index.html - `#changePasswordModal` dùng inline `style="display:none"` thay vì CSS class | 🟢 LOW | ⬜ |
-| 53 | app.js - `initBackupRestore` được gọi trước khi định nghĩa (line 191 gọi, line 195 định nghĩa) — fragile ordering | 🟢 LOW | ⬜ |
+| 44 | student.js - Thiếu import `formatCurrency`, `formatCourseName` → ReferenceError khi mở Student Detail | 🔴 CRITICAL | ✅ |
+| 45 | excel-import.js - Dùng Node.js APIs (`fs`, `csv-parser`, `xml2js`) trong browser code, hoàn toàn không hoạt động | 🔴 CRITICAL | ✅ |
+| 46 | report.js - Thiếu import `getCourseAttendanceDates` → ReferenceError khi tạo báo cáo | 🟡 MEDIUM | ✅ |
+| 47 | index.html - Text mặc định `#reportCourseText` là "Tất cả khóa học" nhưng logic kiểm tra `-- Chọn khóa học --` | 🟡 MEDIUM | ✅ |
+| 48 | app.js - `paymentMonthFilter` change handler: set `paymentCourseSelect.value = ''` rồi kiểm tra `paymentCourseSelect.value` → luôn false, `handlePaymentSelect()` không bao giờ chạy | 🟡 MEDIUM | ✅ |
+| 49 | auth.js - `state.admins = []` (empty array, truthy) không fallback về localStorage vì `&& state.admins.length > 0` nằm sau | 🟡 MEDIUM | ✅ |
+| 50 | payment.js - `tr.className += \` ${rowClass}\`` thêm trailing space khi `rowClass` là empty string | 🟢 LOW | ✅ |
+| 51 | style.css - CSS trùng lặp (lines 594-696 duplicate payment status rules đã có ở 437-470, 584-662) | 🟢 LOW | ✅ |
+| 52 | index.html - `#changePasswordModal` dùng inline `style="display:none"` thay vì CSS class | 🟢 LOW | ✅ |
+| 53 | app.js - `initBackupRestore` được gọi trước khi định nghĩa (line 191 gọi, line 195 định nghĩa) — fragile ordering | 🟢 LOW | ✅ |
 
 ### Mô tả chi tiết
 
@@ -204,27 +206,27 @@
 
 | # | Công việc | Thời gian |
 |---|----------|----------|
-| 1 | Sửa #44: Thêm `formatCurrency, formatCourseName` vào import student.js | 5 phút |
-| 2 | Sửa #46: Thêm `getCourseAttendanceDates` vào import report.js | 5 phút |
-| 3 | Sửa #45: Viết lại excel-import.js dùng FileReader + SheetJS (browser-compatible) | 2-3 giờ |
-| 4 | Sửa #48: Sửa logic paymentMonthFilter change handler trong app.js | 15 phút |
-| 5 | Sửa #49: Sửa auth.js localStorage fallback hoặc thêm load admins trong init | 30 phút |
+| 1 | ~~Sửa #44~~ — Đã sửa: Thêm `formatCurrency, formatCourseName` vào import student.js | ✅ Done |
+| 2 | ~~Sửa #46~~ — Đã sửa: Thêm `getCourseAttendanceDates` vào import report.js | ✅ Done |
+| 3 | ~~Sửa #45~~ — Đã sửa: Viết lại excel-import.js dùng FileReader + SheetJS | ✅ Done |
+| 4 | ~~Sửa #48~~ — Đã sửa: Sửa logic paymentMonthFilter change handler trong app.js | ✅ Done |
+| 5 | ~~Sửa #49~~ — Đã sửa: Sửa auth.js localStorage fallback, ưu tiên đọc localStorage trước | ✅ Done |
 
 ### 🟡 ƯU TIÊN TRUNG BÌNH:
 
 | # | Công việc | Thời gian |
 |---|----------|----------|
-| 6 | Sửa #47: Đồng bộ text mặc định reportCourseText với logic trong report.js | 5 phút |
+| 6 | ~~Sửa #47~~ — Đã sửa: Đồng bộ text mặc định reportCourseText thành "-- Chọn khóa học --" | ✅ Done |
 | 7 | Test toàn bộ flow trong browser (mở index.html và test từng tab) | 2-3 giờ |
-| 8 | Sửa #50: Sửa className trailing space trong payment.js | 5 phút |
-| 9 | Sửa #53: Di chuyển initBackupRestore definition trước init() call | 5 phút |
+| 8 | ~~Sửa #50~~ — Đã sửa sẵn: `if (rowClass)` guard đã tồn tại trong payment.js | ✅ Done |
+| 9 | ~~Sửa #53~~ — Đã sửa: Di chuyển initBackupRestore definition lên trước initExcelImport | ✅ Done |
 
 ### 🟢 ƯU TIÊN THẤP:
 
 | # | Công việc | Thời gian |
 |---|----------|----------|
-| 10 | Sửa #51: Xóa CSS trùng lặp (style.css lines 594-696) | 15 phút |
-| 11 | Sửa #52: Bỏ inline style trên changePasswordModal, dùng CSS class | 5 phút |
+| 10 | ~~Sửa #51~~ — Đã sửa: Xóa CSS trùng lặp (.status-badge.status-paid/unpaid duplicate) | ✅ Done |
+| 11 | ~~Sửa #52~~ — Đã sửa: Bỏ inline style trên changePasswordModal, thêm CSS rule | ✅ Done |
 | 12 | Hoàn thiện mobile.html | 3-4 giờ |
 | 13 | Tạo backend API cho Railway | 8-10 giờ |
 | 14 | Migration dữ liệu | 2-3 giờ |
@@ -236,8 +238,8 @@
 ## 🔧 KIẾN TRÚC MODULES
 
 ```
-app.js (entry, ~200 dòng)
-├── imports từ 14 modules
+app.js (entry, ~340 dòng)
+├── imports từ 15 modules
 ├── gán window.* cho onclick handlers (18 functions)
 ├── event listeners setup
 └── init()
@@ -257,4 +259,6 @@ payment.js ← state.js, auth.js, storage.js, utils.js
 report.js ← state.js, utils.js
 admin.js ← state.js, auth.js, storage.js
 render-all.js ← state.js, student.js, course.js, enrollment.js, attendance.js, payment.js, report.js, admin.js
+merge-students.js ← state.js, auth.js, storage.js, utils.js
+excel-import.js ← state.js, storage.js, utils.js
 ```

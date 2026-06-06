@@ -581,16 +581,6 @@ tr.selected {
     border: 2px solid var(--primary-light);
 }
 
-.status-badge.status-paid {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-.status-badge.status-unpaid {
-    background: #fff3e0;
-    color: #e65100;
-}
-
 /* Payment status dropdown styling */
 .payment-status-select {
     padding: 0.4rem 0.6rem;
@@ -1080,6 +1070,10 @@ tr.selected {
     align-items: center;
     justify-content: center;
     z-index: 10001;
+}
+
+#changePasswordModal {
+    display: none;
 }
 
 .modal-card {

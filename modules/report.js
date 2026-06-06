@@ -1,6 +1,6 @@
 // modules/report.js - Report functions
 import { state } from './state.js';
-import { formatCurrency, formatCourseName, escapeHtml } from './utils.js';
+import { formatCurrency, formatCourseName, escapeHtml, getCourseAttendanceDates } from './utils.js';
 
 export const renderReportDropdowns = async () => {
     const reportYear = document.getElementById('reportYear');

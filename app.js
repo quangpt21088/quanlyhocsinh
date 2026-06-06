@@ -173,7 +173,13 @@ const setupEventListeners = () => {
     if (paymentMonthFilter) paymentMonthFilter.addEventListener('change', () => {
         paymentCourseSelect.value = '';
         renderPaymentDropdowns(paymentMonthFilter.value);
-        if (paymentCourseSelect.value && paymentSelectBtn) handlePaymentSelect();
+        const paymentDetailContent = document.getElementById('paymentDetailContent');
+        const paymentDetailEmpty = document.getElementById('paymentDetailEmpty');
+        if (paymentDetailContent) paymentDetailContent.style.display = 'none';
+        if (paymentDetailEmpty) {
+            paymentDetailEmpty.style.display = 'block';
+            paymentDetailEmpty.textContent = 'Chọn khóa học để xem danh sách học viên.';
+        }
     });
     if (paymentSelectBtn) paymentSelectBtn.addEventListener('click', handlePaymentSelect);
 
@@ -191,6 +197,54 @@ const setupEventListeners = () => {
     initCopyEnrollment();
     initBackupRestore();
     initExcelImport();
+};
+
+// Backup/Restore initialization
+const initBackupRestore = () => {
+    const exportBtn = document.getElementById('exportBackupBtn');
+    const restoreBtn = document.getElementById('restoreBackupBtn');
+    const restoreInput = document.getElementById('restoreFileInput');
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            if (!state.currentAdmin || state.currentAdmin.role !== 'super') {
+                alert('Chỉ Super Admin mới có quyền xuất backup.');
+                return;
+            }
+            await storage.exportBackup();
+        });
+    }
+
+    if (restoreBtn) {
+        restoreBtn.addEventListener('click', () => {
+            if (!state.currentAdmin || state.currentAdmin.role !== 'super') {
+                alert('Chỉ Super Admin mới có quyền khôi phục backup.');
+                return;
+            }
+            if (restoreInput) restoreInput.click();
+        });
+    }
+
+    if (restoreInput) {
+        restoreInput.addEventListener('change', async e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm('⚠️ Khôi phục sẽ XÓA TOÀN BỘ dữ liệu hiện tại và thay thế bằng dữ liệu từ file backup.\n\nTiếp tục?')) {
+                restoreInput.value = '';
+                return;
+            }
+
+            try {
+                const result = await storage.importBackup(file);
+                alert(`Khôi phục thành công!\n- Học viên: ${result.students}\n- Khóa học: ${result.courses}\n- Ghi danh: ${result.enrollments}\n- Điểm danh: ${result.attendances}\n- Thanh toán: ${result.payments}\n- Quản trị: ${result.admins}`);
+                restoreInput.value = '';
+            } catch (err) {
+                alert('Lỗi khôi phục: ' + err.message);
+                restoreInput.value = '';
+            }
+        });
+    }
 };
 
 // Excel Import initialization
@@ -268,54 +322,6 @@ const initExcelImport = () => {
 
     if (downloadTemplateBtn) {
         downloadTemplateBtn.addEventListener('click', generateTemplate);
-    }
-};
-
-// Backup/Restore initialization
-const initBackupRestore = () => {
-    const exportBtn = document.getElementById('exportBackupBtn');
-    const restoreBtn = document.getElementById('restoreBackupBtn');
-    const restoreInput = document.getElementById('restoreFileInput');
-
-    if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            if (!state.currentAdmin || state.currentAdmin.role !== 'super') {
-                alert('Chỉ Super Admin mới có quyền xuất backup.');
-                return;
-            }
-            await storage.exportBackup();
-        });
-    }
-
-    if (restoreBtn) {
-        restoreBtn.addEventListener('click', () => {
-            if (!state.currentAdmin || state.currentAdmin.role !== 'super') {
-                alert('Chỉ Super Admin mới có quyền khôi phục backup.');
-                return;
-            }
-            if (restoreInput) restoreInput.click();
-        });
-    }
-
-    if (restoreInput) {
-        restoreInput.addEventListener('change', async e => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (!confirm('⚠️ Khôi phục sẽ XÓA TOÀN BỘ dữ liệu hiện tại và thay thế bằng dữ liệu từ file backup.\n\nTiếp tục?')) {
-                restoreInput.value = '';
-                return;
-            }
-
-            try {
-                const result = await storage.importBackup(file);
-                alert(`Khôi phục thành công!\n- Học viên: ${result.students}\n- Khóa học: ${result.courses}\n- Ghi danh: ${result.enrollments}\n- Điểm danh: ${result.attendances}\n- Thanh toán: ${result.payments}\n- Quản trị: ${result.admins}`);
-                restoreInput.value = '';
-            } catch (err) {
-                alert('Lỗi khôi phục: ' + err.message);
-                restoreInput.value = '';
-            }
-        });
     }
 };
 

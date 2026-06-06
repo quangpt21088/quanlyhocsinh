@@ -1,6 +1,13 @@
 {
-  "dependencies": {
-    "csv-parser": "^3.2.1",
-    "xml2js": "^0.6.2"
+  "name": "quanlyhocsinh",
+  "version": "1.0.0",
+  "description": "Quản Lý Học Viên Trung Tâm - Student Management System",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && node --watch server.js",
+    "postinstall": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
