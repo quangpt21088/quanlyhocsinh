@@ -157,6 +157,21 @@ export const handlePasswordChange = async e => {
     const admin = state.admins.find(a => a.id === changePasswordAdminId);
     if (!admin) return;
 
+    if (storage.useServer) {
+        // Use dedicated change-password API endpoint
+        try {
+            const result = await api.post(`admins/${changePasswordAdminId}/change-password`, { password: newPwd });
+            if (!result || result.error) {
+                if (changePasswordError) changePasswordError.textContent = result?.error || 'Lỗi đổi mật khẩu.';
+                return;
+            }
+        } catch (err) {
+            if (changePasswordError) changePasswordError.textContent = 'Lỗi kết nối server.';
+            return;
+        }
+    }
+
+    // Update locally (localStorage mode or sync after server success)
     admin.passwordHash = await hashPassword(newPwd);
     await storage.saveAdmins();
 

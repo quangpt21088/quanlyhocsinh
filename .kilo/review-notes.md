@@ -24,10 +24,10 @@
 | attendance.js | Attendance matrix | ~215 |
 | payment.js | Payment + batch status + permission checks | ~370 |
 | report.js | Report + date handling | ~380 |
-| admin.js | Admin CRUD | ~115 |
+| admin.js | Admin CRUD + handleAdminSubmit + API sync | ~210 |
 | render-all.js | Render all + error handling | ~55 |
 | merge-students.js | Merge students functionality | ~180 |
-| excel-import.js | Excel/CSV import + Import & Enroll (SheetJS + FileReader, browser-compatible) | ~380 |
+| excel-import.js | Excel/CSV import + Import & Enroll + Import Course + Import Course&Student | ~620 |
 
 ### Tổng số vấn đề đã sửa: 61 (59 cũ + 2 mới)
 
@@ -306,6 +306,51 @@
 - **Hậu quả**: Restore backup không hiển thị đầy đủ dữ liệu — nhiều tab vẫn hiển thị dữ liệu cũ. Khi dùng server mode, dữ liệu restore chỉ ở localStorage không lên server.
 - **Cách sửa**: Thêm server sync qua `api.post()` cho mọi data types. Thêm `window.location.reload()` sau restore thành công trong `app.js`.
 
+#### #67 — handleAdminSubmit hoàn toàn thiếu — tạo/sửa admin không hoạt động (🔴 CRITICAL)
+- **File**: `modules/admin.js` (thiếu export), `app.js` (thiếu import + event listener)
+- **Nguyên nhân**: Form `adminForm` tồn tại trong HTML nhưng **không có bất kỳ mã JavaScript nào** xử lý submit. `admin.js` chỉ export `renderAdminTable`, `startAdminEdit`, `cancelAdminEdit`, `deleteAdmin` — **không có `handleAdminSubmit`**. `app.js` cũng không import hay gọi handler nào cho admin form.
+- **Hậu quả**: Tab Quản Trị hoàn toàn không thể tạo admin mới hay sửa admin hiện có. Click "Thêm Quản Trị Viên" không làm gì cả.
+- **Cách sửa**: Thêm `handleAdminSubmit` trong `admin.js` xử lý cả create và edit, bao gồm: validate input, hash password, check duplicate username, đọc permission matrix, lưu vào `state.admins` + localStorage. Import và wire up trong `app.js`.
+
+#### #68 — Không có admin mã hóa trong localStorage khi chạy offline (🔴 CRITICAL)
+- **File**: `app.js` (init function)
+- **Nguyên nhân**: Khi chạy không có backend server, `localStorage.getItem('admins')` trả về `[]`. Admin mặc định (`admin`/`admin`) chỉ được tạo trong backend database (`database.js:78-85`), **không bao giờ được seed vào localStorage**.
+- **Hậu quả**: User không thể đănh nhập khi chạy offline — màn hình login hiện "Lỗi kết nối" vì không có admin nào trong localStorage để fallback.
+- **Cách sửa**: Thêm seeding trong `init()`: nếu `localStorage.getItem('admins')` rỗng, tạo default super admin (username: `admin`, password: `admin`) và lưu vào localStorage.
+
+#### #69 — Import Khóa Học từ Excel (tính năng mới) (🟢 FEATURE)
+- **File**: `index.html` (thiếu HTML), `modules/excel-import.js` (thiếu logic), `app.js` (thiếu init)
+- **Nguyên nhân**: Tính năng chưa được triển khai.
+- **Cách triển khai**: Thêm section "Import Khóa Học Từ Excel" trong tab Khóa Học. File Excel có các cột: Tên Khóa Học, Giảng Viên, Tháng, Học Phí, Sĩ Số Tối Đa, Trạng Thái. Hệ thống tạo khóa học mới nếu chưa có (dựa trên Tên + Tháng). Có preview + validation.
+
+#### #70 — Import Học Viên & Khóa Học từ Excel (tính năng mới) (🟢 FEATURE)
+- **File**: `index.html` (thiếu HTML), `modules/excel-import.js` (thiếu logic), `app.js` (thiếu init)
+- **Nguyên nhân**: Tính năng chưa được triển khai.
+- **Cách triển khai**: Thêm section "Import Học Viên & Khóa Học Từ Excel" trong tab Ghi Danh (bên dưới Import Học Viên & Ghi Danh). File Excel chứa cả thông tin học viên (Họ Tên, SĐT, Ngày Sinh...) và khóa học (Tên Khóa Học, Giảng Viên, Tháng, Học Phí...). Hệ thống tự động: (1) Tìm/tạo khóa học theo Tên + Tháng, (2) Tìm/tạo học viên theo SĐT, (3) Ghi danh học viên vào khóa học. Có preview + validation + trùng lặp check.
+
+#### #71 — handlePasswordChange dùng saveAdmins() batch API không tồn tại (🔴 CRITICAL)
+- **File**: `modules/auth.js:140-170` (handlePasswordChange)
+- **Nguyên nhân**: `handlePasswordChange` gọi `storage.saveAdmins()` để lưu password mới. Nhưng `saveAdmins()` ở server mode gọi `api.post('admins/batch', ...)` — endpoint này **không tồn tại** trong backend (backend chỉ có `POST /admins`, `PUT /admins/:id`, `DELETE /admins/:id`, `POST /admins/:id/change-password`).
+- **Hậu quả**: Trên host có server, đổi mật khẩu admin **hoàn toàn không hoạt động** — request trả về 404, password không được lưu.
+- **Cách sửa**: Trong `handlePasswordChange`, gọi trực tiếp `api.post('admins/:id/change-password', ...)` thay vì `storage.saveAdmins()`.
+
+#### #72 — storage.saveAdmins() dùng batch API không tồn tại (🔴 HIGH)
+- **File**: `modules/storage.js:120-125`
+- **Nguyên nhân**: `saveAdmins()` gọi `api.post('admins/batch', ...)` không tồn tại trong backend.
+- **Hậu quả**: Mọi thao tác lưu admin (create, edit, password change) trên server đều fail.
+- **Cách sửa**: Đổi từ batch sang gọi `api.put('admins', admin.id, ...)` cho từng admin.
+
+#### #73 — deleteAdmin không gọi API delete (🟡 MEDIUM)
+- **File**: `modules/admin.js` (deleteAdmin function)
+- **Nguyên nhân**: `deleteAdmin` chỉ xóa khỏi `state.admins` và gọi `storage.saveAdmins()`, nhưng không gọi `api.delete('admins', id)` để xóa trên server.
+- **Hậu quả**: Xóa admin trên host không có hiệu quực thực sên — `saveAdmins()` sẽ sync lại admin đã xóa lên server.
+- **Cách sửa**: Thêm `api.delete('admins', id)` trước khi xóa khỏi state.
+
+#### #74 — handleAdminSubmit tạo admin mới không gọi POST /admins (🟡 MEDIUM)
+- **File**: `modules/admin.js` (handleAdminSubmit, nhánh create)
+- **Nguyên nhân**: Khi tạo admin mới, chỉ push vào `state.admins` và gọi `storage.saveAdmins()` (dùng PUT). Nhưng admin mới chưa tồn tại trên server nên PUT sẽ fail hoặc không có hiệu quả.
+- **Cách sửa**: Gọi `api.post('admins', {...})` rồi mới push vào state.
+
 ---
 
 ## 📋 CÔNG VIỆC CÒN LẠI (Theo Ưu Tiên)
@@ -319,6 +364,12 @@
 | 3 | ~~Sửa #45~~ — Đã sửa: Viết lại excel-import.js dùng FileReader + SheetJS | ✅ Done |
 | 4 | ~~Sửa #48~~ — Đã sửa: Sửa logic paymentMonthFilter change handler trong app.js | ✅ Done |
 | 5 | ~~Sửa #49~~ — Đã sửa: Sửa auth.js localStorage fallback, ưu tiên đọc localStorage trước | ✅ Done |
+| 26 | ~~Sửa #67~~ — Đã sửa: Thêm handleAdminSubmit + wire up trong app.js | ✅ Done |
+| 27 | ~~Sửa #68~~ — Đã sửa: Seed default super admin vào localStorage | ✅ Done |
+| 28 | ~~Sửa #71~~ — Đã sửa: handlePasswordChange dùng API /admins/:id/change-password | ✅ Done |
+| 29 | ~~Sửa #72~~ — Đã sửa: saveAdmins() dùng PUT từng admin thay vì batch API | ✅ Done |
+| 30 | ~~Sửa #73~~ — Đã sửa: deleteAdmin dùng DELETE /admins/:id API | ✅ Done |
+| 31 | ~~Sửa #74~~ — Đã sửa: handleAdminSubmit dùng POST /admins cho create mới | ✅ Done |
 
 ### 🟡 ƯU TIÊN TRUNG BÌNH:
 
@@ -333,6 +384,10 @@
 | 19 | ~~Sửa #64~~ — Đã sửa: Thay inline onclick bằng event listener cho nút Xóa trong preview table | ✅ Done |
 | 20 | ~~Sửa #65~~ — Đã sửa: Thêm initImportEnroll() — toàn bộ logic Import Học Viên & Ghi Danh | ✅ Done |
 | 21 | ~~Sửa #66~~ — Đã sửa: Thêm server sync + page reload trong importBackup | ✅ Done |
+| 22 | ~~Sửa #67~~ — Đã sửa: Thêm handleAdminSubmit (create/edit admin) + wire up trong app.js | ✅ Done |
+| 23 | ~~Sửa #68~~ — Đã sửa: Thêm seed default super admin vào localStorage trong init() | ✅ Done |
+| 24 | ~~#69~~ — Đã triển khai: Import Khóa Học Từ Excel (tab Khóa Học) | ✅ Done |
+| 25 | ~~#70~~ — Đã triển khai: Import Học Viên & Khóa Học Từ Excel (tab Ghi Danh) | ✅ Done |
 
 ### 🟢 ƯU TIÊN THẤP:
 
@@ -351,11 +406,12 @@
 ## 🔧 KIẾN TRÚC MODULES
 
 ```
-app.js (entry, ~340 dòng)
+app.js (entry, ~380 dòng)
 ├── imports từ 15 modules
 ├── gán window.* cho onclick handlers (18 functions)
 ├── event listeners setup
-└── init()
+├── init() — seed default admin nếu localStorage rỗng
+└── initImportEnroll(), initCourseStudentImport()
 
 Dependency Graph:
 state.js ← (none)
@@ -370,7 +426,7 @@ enrollment.js ← state.js, auth.js, storage.js, utils.js (dùng window.renderAl
 attendance.js ← state.js, auth.js, storage.js, utils.js
 payment.js ← state.js, auth.js, storage.js, utils.js
 report.js ← state.js, utils.js
-admin.js ← state.js, auth.js, storage.js
+admin.js ← state.js, auth.js, storage.js, utils.js
 render-all.js ← state.js, student.js, course.js, enrollment.js, attendance.js, payment.js, report.js, admin.js
 merge-students.js ← state.js, auth.js, storage.js, utils.js
 excel-import.js ← state.js, storage.js, utils.js

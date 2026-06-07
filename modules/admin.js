@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { checkPermission, readPermissionMatrix, setPermissionMatrix, resetPermissionMatrix } from './auth.js';
 import { storage } from './storage.js';
+import { api } from './api.js';
 import { escapeHtml } from './utils.js';
 
 export const renderAdminTable = () => {
@@ -111,7 +112,16 @@ export const deleteAdmin = async id => {
         return;
     }
     if (!confirm('Bạn có chắc muốn xóa quản trị viên này?')) return;
-    
+
+    if (storage.useServer) {
+        try {
+            await api.delete('admins', id);
+        } catch (err) {
+            alert('Lỗi xóa admin trên server.');
+            return;
+        }
+    }
+
     state.admins = state.admins.filter(a => a.id !== id);
     await storage.saveAdmins();
     renderAdminTable();
@@ -145,7 +155,6 @@ export const handleAdminSubmit = async e => {
         const index = state.admins.findIndex(a => a.id === state.editingAdminId);
         if (index !== -1) {
             const current = state.admins[index];
-            // Check duplicate username (exclude self)
             if (state.admins.some(a => a.username === username && a.id !== current.id)) {
                 alert('Tên đăng nhập đã tồn tại.');
                 return;
@@ -158,7 +167,6 @@ export const handleAdminSubmit = async e => {
                 permissions,
                 updatedAt: new Date().toISOString()
             };
-            // Update password only if provided
             if (password && password.length > 0) {
                 if (password.length < 4) {
                     alert('Mật khẩu phải có ít nhất 4 ký tự.');
@@ -167,13 +175,12 @@ export const handleAdminSubmit = async e => {
                 const { hashPassword } = await import('./auth.js');
                 state.admins[index].passwordHash = await hashPassword(password);
             }
+            cancelAdminEdit();
+            await storage.saveAdmins();
+            renderAdminTable();
+            alert('Cập nhật quản trị viên thành công!');
         }
-        cancelAdminEdit();
-        await storage.saveAdmins();
-        renderAdminTable();
-        alert('Cập nhật quản trị viên thành công!');
     } else {
-        // Create new admin
         if (!password || password.length < 4) {
             alert('Mật khẩu phải có ít nhất 4 ký tự.');
             return;
@@ -184,8 +191,72 @@ export const handleAdminSubmit = async e => {
         }
         const { hashPassword } = await import('./auth.js');
         const passwordHash = await hashPassword(password);
+        const newId = Date.now().toString();
+
+        if (storage.useServer) {
+            try {
+                await api.post('admins', {
+                    id: newId,
+                    username,
+                    name,
+                    role,
+                    permissions,
+                    password
+                });
+            } catch (err) {
+                alert('Lỗi tạo admin trên server: ' + (err.message || ''));
+                return;
+            }
+        }
+
         state.admins.push({
-            id: Date.now().toString(),
+            id: newId,
+            username,
+            name,
+            role,
+            permissions,
+            passwordHash,
+            createdAt: new Date().toISOString()
+        });
+        cancelAdminEdit();
+        renderAdminTable();
+        alert('Thêm quản trị viên thành công!');
+    }
+            state.admins[index] = {
+                ...current,
+                username,
+                name,
+                role,
+                permissions,
+                updatedAt: new Date().toISOString()
+            };
+            if (password && password.length > 0) {
+                if (password.length < 4) {
+                    alert('Mật khẩu phải có ít nhất 4 ký tự.');
+                    return;
+                }
+                const { hashPassword } = await import('./auth.js');
+                state.admins[index].passwordHash = await hashPassword(password);
+            }
+            cancelAdminEdit();
+            await storage.saveAdmins();
+            renderAdminTable();
+            alert('Cập nhật quản trị viên thành công!');
+        }
+    } else {
+        if (!password || password.length < 4) {
+            alert('Mật khẩu phải có ít nhất 4 ký tự.');
+            return;
+        }
+        if (state.admins.some(a => a.username === username)) {
+            alert('Tên đăng nhập đã tồn tại.');
+            return;
+        }
+        const { hashPassword } = await import('./auth.js');
+        const passwordHash = await hashPassword(password);
+        const newId = Date.now().toString();
+        state.admins.push({
+            id: newId,
             username,
             name,
             role,
