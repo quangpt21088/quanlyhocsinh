@@ -49,8 +49,7 @@ export const handleLogin = async e => {
         await doRenderAll();
     } catch (err) {
         // API not available - try localStorage fallback
-        const localAdmins = JSON.parse(localStorage.getItem('admins') || '[]');
-        const admins = localAdmins.length > 0 ? localAdmins : (state.admins.length > 0 ? state.admins : []);
+        const admins = JSON.parse(localStorage.getItem('admins') || '[]');
 
         if (admins.length > 0) {
             const admin = admins.find(a => a.username === username);

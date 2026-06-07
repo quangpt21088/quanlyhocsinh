@@ -21,7 +21,7 @@ export class ApiClient {
             });
 
             if (response.status === 401) {
-                this.handleAuthError();
+                this.handleAuthError(endpoint);
                 return null;
             }
 
@@ -32,7 +32,11 @@ export class ApiClient {
         }
     }
 
-    handleAuthError() {
+    handleAuthError(endpoint) {
+        // Don't reload on ping/auth endpoints to avoid infinite reload loops
+        if (endpoint === '/ping' || endpoint === '/auth/login') {
+            return;
+        }
         localStorage.removeItem('token');
         sessionStorage.removeItem('currentAdmin');
         window.location.reload();
