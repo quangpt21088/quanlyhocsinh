@@ -14,7 +14,7 @@ import { switchTab, showLogin, showApp, applyPermissions } from './modules/ui.js
 import { openChangePassword, closeChangePassword, handlePasswordChange } from './modules/auth.js';
 import { handlePaymentConfirm, handleSavePaymentStatuses, handleCancelPaymentStatuses } from './modules/payment.js';
 import { mergeStudents, initMergeStudents, updateMergePreview } from './modules/merge-students.js';
-import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate } from './modules/excel-import.js';
+import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate, initImportEnroll } from './modules/excel-import.js';
 
 // Assign renderAll to window for circular dependency avoidance
 window.renderAll = renderAll;
@@ -121,6 +121,26 @@ const setupEventListeners = () => {
     if (clearEnrollFilters) clearEnrollFilters.addEventListener('click', clearEnrollmentFilterInputs);
     if (enrollmentCancelBtn) enrollmentCancelBtn.addEventListener('click', cancelEnrollmentEdit);
 
+    // Enroll month filter — filter courses by selected month
+    const enrollMonth = document.getElementById('enrollMonth');
+    if (enrollMonth) {
+        enrollMonth.addEventListener('change', () => {
+            renderEnrollmentDropdowns();
+        });
+    }
+
+    // Discount type — enable/disable discount value input
+    const discountTypeEl = document.getElementById('discountType');
+    if (discountTypeEl) {
+        discountTypeEl.addEventListener('change', () => {
+            const discountValueEl = document.getElementById('discountValue');
+            if (discountValueEl) {
+                discountValueEl.disabled = !discountTypeEl.value;
+                if (!discountTypeEl.value) discountValueEl.value = '';
+            }
+        });
+    }
+
     // Attendance events
     const attendCourse = document.getElementById('attendCourse');
     const attendMonth = document.getElementById('attendMonth');
@@ -198,6 +218,7 @@ const setupEventListeners = () => {
     initCopyEnrollment();
     initBackupRestore();
     initExcelImport();
+    initImportEnroll();
 };
 
 // Backup/Restore initialization
@@ -238,8 +259,9 @@ const initBackupRestore = () => {
 
             try {
                 const result = await storage.importBackup(file);
-                alert(`Khôi phục thành công!\n- Học viên: ${result.students}\n- Khóa học: ${result.courses}\n- Ghi danh: ${result.enrollments}\n- Điểm danh: ${result.attendances}\n- Thanh toán: ${result.payments}\n- Quản trị: ${result.admins}`);
+                alert(`Khôi phục thành công!\n- Học viên: ${result.students}\n- Khóa học: ${result.courses}\n- Ghi danh: ${result.enrollments}\n- Điểm danh: ${result.attendances}\n- Thanh toán: ${result.payments}\n- Quản trị: ${result.admins}\n\nTrang sẽ được tải lại để áp dụng dữ liệu mới.`);
                 restoreInput.value = '';
+                window.location.reload();
             } catch (err) {
                 alert('Lỗi khôi phục: ' + err.message);
                 restoreInput.value = '';

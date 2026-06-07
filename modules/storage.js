@@ -128,7 +128,7 @@ export class StorageManager {
     async exportBackup() {
         const backupData = {
             version: '1.0',
-            timestamp: new Date().toISOString(),
+            exportedAt: new Date().toISOString(),
             students: state.students,
             courses: state.courses,
             enrollments: state.enrollments,
@@ -155,19 +155,96 @@ export class StorageManager {
             reader.onload = async e => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    
+
                     // Validate backup structure
-                    if (!data.students || !data.courses || !data.enrollments) {
-                        throw new Error('File backup không hợp lệ: thiếu dữ liệu bắt buộc');
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('File backup không hợp lệ: nội dung không đúng định dạng JSON');
+                    }
+                    if (!Array.isArray(data.students) || !Array.isArray(data.courses) || !Array.isArray(data.enrollments)) {
+                        throw new Error('File backup không hợp lệ: thiếu dữ liệu bắt buộc (students, courses, enrollments)');
                     }
 
-                    // Restore all data
-                    state.students = data.students || [];
-                    state.courses = data.courses || [];
-                    state.enrollments = data.enrollments || [];
-                    state.attendances = data.attendances || [];
-                    state.paymentRecords = data.paymentRecords || [];
-                    state.admins = data.admins || [];
+                    // Normalize student fields
+                    const students = (data.students || []).map(s => ({
+                        id: s.id || '',
+                        name: s.name || '',
+                        phone: s.phone || '',
+                        email: s.email || '',
+                        dob: s.dob || '',
+                        gender: s.gender || '',
+                        address: s.address || '',
+                        status: s.status || 'Đang học',
+                        discountType: s.discountType || '',
+                        discountValue: s.discountValue || 0,
+                        createdAt: s.createdAt || new Date().toISOString(),
+                        updatedAt: s.updatedAt || null
+                    }));
+
+                    // Normalize course fields
+                    const courses = (data.courses || []).map(c => ({
+                        id: c.id || '',
+                        name: c.name || '',
+                        instructor: c.instructor || '',
+                        month: c.month || 0,
+                        fee: c.fee || 0,
+                        maxStudents: c.maxStudents || 30,
+                        status: c.status || 'Chưa bắt đầu',
+                        createdAt: c.createdAt || new Date().toISOString(),
+                        updatedAt: c.updatedAt || null
+                    }));
+
+                    // Normalize enrollment fields
+                    const enrollments = (data.enrollments || []).map(en => ({
+                        id: en.id || '',
+                        studentId: en.studentId || '',
+                        courseId: en.courseId || '',
+                        date: en.date || '',
+                        discountType: en.discountType || '',
+                        discountValue: en.discountValue || 0,
+                        createdAt: en.createdAt || new Date().toISOString()
+                    }));
+
+                    // Normalize attendance fields
+                    const attendances = (data.attendances || []).map(a => ({
+                        id: a.id || '',
+                        courseId: a.courseId || '',
+                        studentId: a.studentId || '',
+                        date: a.date || '',
+                        present: !!a.present,
+                        createdAt: a.createdAt || new Date().toISOString()
+                    }));
+
+                    // Normalize payment record fields
+                    const paymentRecords = (data.paymentRecords || []).map(p => ({
+                        id: p.id || '',
+                        studentId: p.studentId || '',
+                        courseId: p.courseId || '',
+                        month: p.month || '',
+                        status: p.status || 'Chưa thanh toán',
+                        method: p.method || '',
+                        createdAt: p.createdAt || new Date().toISOString(),
+                        updatedAt: p.updatedAt || null
+                    }));
+
+                    // Normalize admin fields
+                    const admins = (data.admins || []).map(a => ({
+                        id: a.id || '',
+                        username: a.username || '',
+                        passwordHash: a.passwordHash || '',
+                        name: a.name || '',
+                        role: a.role || 'admin',
+                        permissions: a.permissions || '{}',
+                        createdAt: a.createdAt || new Date().toISOString(),
+                        updatedAt: a.updatedAt || null
+                    }));
+
+                    // Restore all data to state
+                    state.students = students;
+                    state.courses = courses;
+                    state.enrollments = enrollments;
+                    state.attendances = attendances;
+                    state.paymentRecords = paymentRecords;
+                    state.admins = admins;
 
                     // Save to localStorage
                     localStorage.setItem('students', JSON.stringify(state.students));
@@ -176,6 +253,19 @@ export class StorageManager {
                     localStorage.setItem('attendances', JSON.stringify(state.attendances));
                     localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
                     localStorage.setItem('admins', JSON.stringify(state.admins));
+
+                    // Sync to server if using server mode
+                    if (this.useServer) {
+                        try {
+                            await api.post('students/batch', state.students);
+                            await api.post('courses/batch', state.courses);
+                            await api.post('enrollments/batch', state.enrollments);
+                            await api.post('attendances/batch', state.attendances);
+                            await api.post('payments/batch', state.paymentRecords);
+                        } catch (serverErr) {
+                            console.warn('Server sync failed after restore, data saved to localStorage only:', serverErr);
+                        }
+                    }
 
                     // Re-render
                     if (typeof window.renderAll === 'function') {

@@ -202,7 +202,7 @@
 
 ## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-07) — ĐÃ SỬA HẾT
 
-### Tổng số lỗi mới: 6 (tất cả đã sửa ✅)
+### Tổng số lỗi mới: 8 (tất cả đã sửa ✅)
 
 | # | Vấn đề | Mức độ | Trạng thái |
 |---|--------|--------|-----------|
@@ -212,6 +212,8 @@
 | 57 | auth.js - `handleLogin` không check `result === null` trước khi access `result.token` → TypeError khi server trả 401 | 🔴 CRITICAL | ✅ |
 | 58 | storage.js - Server-mode `getStudents()`/`getCourses()`/`getEnrollments()` không set `state.*` khi dùng API → UI luôn hiển thị trống khi deploy | 🔴 HIGH | ✅ |
 | 59 | storage.js - `getAttendances()`/`getPaymentRecords()`/`getAdmins()` cùng bug #58 — server-mode không set `state.*` | 🔴 HIGH | ✅ |
+| 60 | api.js - `handleAuthError()` dùng `window.location.reload()` gây F5 loop khi 401 sau login — nên dùng `showLogin()` để logout graceful | 🔴 CRITICAL | ✅ |
+| 61 | api.js - Import `showLogin` từ `ui.js` gây circular dependency `api→ui→auth→api` — fix bằng `window.showLogin()` | 🟡 MEDIUM | ✅ |
 
 ### Mô tả chi tiết
 
@@ -261,6 +263,48 @@
 - **Nguyên nhân**: Tương tự #58 — server-mode không set `state.attendances`, `state.paymentRecords`, `state.admins`.
 - **Hậu quả**: Tab Điểm Danh, Thanh Toán, Quản Trị đều hiển thị trống khi deploy với server.
 - **Cách sửa**: Thêm `if (data) state.* = data;` cho cả 3 methods.
+
+#### #60 — api.js handleAuthError dùng reload gây F5 loop (🔴 CRITICAL)
+- **File**: `modules/api.js:45-53`
+- **Nguyên nhân**: Khi API trả 401 sau login (token invalid/expired), `handleAuthError` gọi `window.location.reload()`. Nếu server restart và JWT_SECRET thay đổi, token mới vừa login cũng bị 401 → reload → login → 401 → loop.
+- **Hậu quả**: User bị F5 loop không thể thoát, không thể login lại.
+- **Cách sửa**: Thay `window.location.reload()` bằng `window.showLogin()` — clear session và hiện login screen, cho phép user login lại.
+
+#### #61 — api.js import showLogin gây circular dependency (🟡 MEDIUM)
+- **File**: `modules/api.js:1`
+- **Nguyên nhân**: `handleAuthError` cần gọi `showLogin()` khi 401. Nhưng `api.js → ui.js → auth.js → api.js` tạo circular dependency. ES modules có thể handle circular nhưng không reliable.
+- **Hậu quả**: Có thể gây lỗi runtime không xác định khi module load.
+- **Cách sửa**: Gọi `window.showLogin()` thay vì import trực tiếp. Gán `window.showLogin = showLogin` trong `app.js`.
+
+#### #62 — enrollMonth không có event handler (🔴 HIGH)
+- **File**: `app.js` (enrollment event listeners section), `modules/enrollment.js:28-36` (renderEnrollmentDropdowns)
+- **Nguyên nhân**: Dropdown `enrollMonth` tồn tại trong HTML nhưng không có `change` event listener trong `app.js`. Hàm `renderEnrollmentDropdowns` cũng không đọc giá trị `enrollMonth` để lọc khóa học theo tháng.
+- **Hậu quả**: Chọn tháng trong tab Ghi Danh không lọc danh sách khóa học — tính năng lọc theo tháng hoàn toàn không hoạt động.
+- **Cách sửa**: Thêm `enrollMonth.addEventListener('change', ...)` trong `app.js` gọi `renderEnrollmentDropdowns()`. Sửa `renderEnrollmentDropdowns` để đọc `enrollMonth.value` và lọc `state.courses` theo `c.month === selectedMonth`.
+
+#### #63 — discountType không có change handler (🔴 HIGH)
+- **File**: `app.js` (enrollment event listeners section)
+- **Nguyên nhân**: Dropdown `discountType` không có event listener. Input `discountValue` mặc định `disabled` và không bao giờ được enable khi chọn loại ưu đãi.
+- **Hậu quả**: Không thể nhập giá trị ưu đãi khi ghi danh — phần discount hoàn toàn không dùng được.
+- **Cách sửa**: Thêm `discountType.addEventListener('change', ...)` trong `app.js` để enable/disable `discountValue` dựa trên việc có chọn loại ưu đãi hay không.
+
+#### #64 — excel-import preview "Xóa" button gây JS error (🟡 MEDIUM)
+- **File**: `modules/excel-import.js:177`
+- **Nguyên nhân**: Button Xóa trong preview table dùng inline `onclick="... window.excelImportRemoveRow(${index})"` nhưng `window.excelImportRemoveRow` không bao giờ được định nghĩa.
+- **Hậu quả**: Click nút Xóa bị JS error, không xóa được dòng trong preview.
+- **Cách sửa**: Thay inline `onclick` bằng event listener dùng `data-action="remove"` attribute.
+
+#### #65 — Import Học Viên & Ghi Danh hoàn toàn không có JS (🔴 CRITICAL)
+- **File**: `index.html:629-698` (HTML section), `app.js` (thiếu init), `modules/excel-import.js` (thiếu logic)
+- **Nguyên nhân**: Section "Import Học Viên & Ghi Danh" có đầy đủ HTML elements (`uploadImportEnrollBtn`, `importEnrollFileInput`, `importEnrollAllBtn`, `cancelImportEnrollBtn`, `downloadImportEnrollTemplateBtn`, `importEnrollMonth`, `importEnrollCourse`, `importEnrollDate`, preview table) nhưng **không có bất kỳ mã JavaScript nào** khởi tạo. `state.importEnrollStudents` tồn tại trong `state.js` nhưng không bao giờ được sử dụng.
+- **Hậu quả**: Toàn bộ tính năng "Import Học Viên & Ghi Danh" hoàn toàn không hoạt động — không upload file được, không preview, không import.
+- **Cách sửa**: Thêm `initImportEnroll()` trong `excel-import.js` xử lý: upload file → parse Excel → preview editable → import students (skip duplicate by phone) + enroll vào khóa học đã chọn. Gọi `initImportEnroll()` trong `app.js init()`.
+
+#### #66 — importBackup không sync server + không reload page (🔴 HIGH)
+- **File**: `modules/storage.js:152-200` (importBackup), `app.js:230-248` (restore handler)
+- **Nguyên nhân**: `importBackup` chỉ ghi vào localStorage và set in-memory state, nhưng (1) không sync lên server khi `useServer = true`, (2) không reload page nên các modules khác không re-init từ localStorage.
+- **Hậu quả**: Restore backup không hiển thị đầy đủ dữ liệu — nhiều tab vẫn hiển thị dữ liệu cũ. Khi dùng server mode, dữ liệu restore chỉ ở localStorage không lên server.
+- **Cách sửa**: Thêm server sync qua `api.post()` cho mọi data types. Thêm `window.location.reload()` sau restore thành công trong `app.js`.
 
 ---
 

@@ -174,9 +174,17 @@ export const renderPreviewTable = (students, containerId, emptyId) => {
             <td><input type="text" class="preview-edit-input" data-field="email" value="${escapeHtml(student.email || '')}" style="min-width:120px;"></td>
             <td><input type="text" class="preview-edit-input" data-field="address" value="${escapeHtml(student.address || '')}" style="min-width:100px;"></td>
             <td>-</td>
-            <td><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove(); window.excelImportRemoveRow(${index});">Xóa</button></td>
+            <td><button class="btn btn-danger btn-sm" data-action="remove" data-index="${index}">Xóa</button></td>
         `;
         tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('button[data-action="remove"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.index);
+            const row = btn.closest('tr');
+            row.remove();
+        });
     });
 };
 
@@ -257,4 +265,212 @@ export const generateTemplate = () => {
     ];
 
     XLSX.writeFile(wb, 'Mau_danh_sach_hoc_vien.xlsx');
+};
+
+// ===== Import & Enroll (Import students and enroll them into a course) =====
+
+export const initImportEnroll = () => {
+    const uploadBtn = document.getElementById('uploadImportEnrollBtn');
+    const fileInput = document.getElementById('importEnrollFileInput');
+    const fileName = document.getElementById('importEnrollFileName');
+    const previewSection = document.getElementById('importEnrollPreview');
+    const previewCount = document.getElementById('importEnrollPreviewCount');
+    const previewBody = document.getElementById('importEnrollPreviewBody');
+    const importAllBtn = document.getElementById('importEnrollAllBtn');
+    const cancelBtn = document.getElementById('cancelImportEnrollBtn');
+    const downloadTemplateBtn = document.getElementById('downloadImportEnrollTemplateBtn');
+    const monthSelect = document.getElementById('importEnrollMonth');
+    const courseSelect = document.getElementById('importEnrollCourse');
+
+    const renderImportEnrollCourseDropdown = () => {
+        if (!courseSelect || !monthSelect) return;
+        const selectedMonth = monthSelect.value ? parseInt(monthSelect.value) : null;
+        const currentCourse = courseSelect.value;
+        courseSelect.innerHTML = '<option value="">Chọn khóa học</option>';
+        if (!selectedMonth) return;
+        const courses = state.courses.filter(c => c.status === 'Đang mở' && c.month === selectedMonth);
+        courses.forEach(c => {
+            const enrolled = state.enrollments ? state.enrollments.filter(e => e.courseId === c.id).length : 0;
+            if (!c.maxStudents || enrolled < c.maxStudents) {
+                courseSelect.innerHTML += `<option value="${c.id}">${c.name} (${enrolled}/${c.maxStudents || '-'})</option>`;
+            }
+        });
+        courseSelect.value = currentCourse;
+    };
+
+    if (monthSelect) {
+        monthSelect.addEventListener('change', () => {
+            courseSelect.value = '';
+            renderImportEnrollCourseDropdown();
+        });
+    }
+
+    if (uploadBtn && fileInput) {
+        uploadBtn.addEventListener('click', () => fileInput.click());
+    }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (fileName) fileName.textContent = file.name;
+
+            try {
+                const result = await parseExcelFile(file);
+                state.importEnrollStudents = result.students;
+
+                if (result.errors.length > 0) {
+                    alert('Cảnh báo:\n' + result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n...và ${result.errors.length - 5} lỗi khác` : ''));
+                }
+
+                if (previewCount) previewCount.textContent = state.importEnrollStudents.length;
+
+                // Render preview
+                if (previewBody) {
+                    previewBody.innerHTML = '';
+                    state.importEnrollStudents.forEach((student, index) => {
+                        const tr = document.createElement('tr');
+                        tr.dataset.index = index;
+                        tr.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td><input type="text" class="preview-edit-input" data-field="name" value="${escapeHtml(student.name)}" style="min-width:120px;"></td>
+                            <td><input type="text" class="preview-edit-input" data-field="dob" value="${escapeHtml(student.dob || '')}" style="min-width:90px;"></td>
+                            <td><input type="text" class="preview-edit-input" data-field="gender" value="${escapeHtml(student.gender || '')}" style="min-width:60px;"></td>
+                            <td><input type="text" class="preview-edit-input" data-field="phone" value="${escapeHtml(student.phone)}" style="min-width:100px;"></td>
+                            <td><input type="text" class="preview-edit-input" data-field="email" value="${escapeHtml(student.email || '')}" style="min-width:120px;"></td>
+                            <td><input type="text" class="preview-edit-input" data-field="address" value="${escapeHtml(student.address || '')}" style="min-width:100px;"></td>
+                            <td>-</td>
+                            <td><button class="btn btn-danger btn-sm" data-action="remove-enroll" data-index="${index}">Xóa</button></td>
+                        `;
+                        previewBody.appendChild(tr);
+                    });
+                    previewBody.querySelectorAll('button[data-action="remove-enroll"]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const idx = parseInt(btn.dataset.index);
+                            state.importEnrollStudents.splice(idx, 1);
+                            btn.closest('tr').remove();
+                            if (previewCount) previewCount.textContent = state.importEnrollStudents.length;
+                        });
+                    });
+                }
+
+                if (previewSection) previewSection.style.display = 'block';
+            } catch (err) {
+                alert('Lỗi đọc file: ' + err.message);
+                if (fileName) fileName.textContent = 'Chưa chọn file';
+                fileInput.value = '';
+            }
+        });
+    }
+
+    if (importAllBtn) {
+        importAllBtn.addEventListener('click', async () => {
+            if (!state.importEnrollStudents || state.importEnrollStudents.length === 0) {
+                alert('Không có dữ liệu để import.');
+                return;
+            }
+
+            const courseId = courseSelect?.value;
+            if (!courseId) {
+                alert('Vui lòng chọn khóa học ghi danh.');
+                return;
+            }
+
+            const enrollDate = document.getElementById('importEnrollDate')?.value;
+            if (!enrollDate) {
+                alert('Vui lòng chọn ngày ghi danh.');
+                return;
+            }
+
+            const course = state.courses.find(c => c.id === courseId);
+            if (!course) {
+                alert('Không tìm thấy khóa học.');
+                return;
+            }
+
+            let importedCount = 0;
+            let enrolledCount = 0;
+
+            for (const studentData of state.importEnrollStudents) {
+                // Check for duplicate by phone
+                const phone = studentData.phone || '';
+                let existingStudent = null;
+                if (phone) {
+                    existingStudent = state.students.find(s => s.phone === phone);
+                }
+
+                let studentId;
+                if (existingStudent) {
+                    studentId = existingStudent.id;
+                } else {
+                    studentId = Date.now().toString() + Math.random().toString(36).substr(2, 9) + importedCount;
+                    state.students.push({
+                        id: studentId,
+                        name: studentData.name || '',
+                        phone: phone,
+                        email: studentData.email || '',
+                        dob: studentData.dob || '',
+                        gender: studentData.gender || '',
+                        address: studentData.address || '',
+                        status: 'Đang học',
+                        discountType: '',
+                        discountValue: 0,
+                        createdAt: new Date().toISOString()
+                    });
+                    importedCount++;
+                }
+
+                // Check if already enrolled
+                const alreadyEnrolled = state.enrollments.some(e => e.studentId === studentId && e.courseId === courseId);
+                if (alreadyEnrolled) continue;
+
+                // Check capacity
+                const currentEnrolled = state.enrollments.filter(e => e.courseId === courseId).length;
+                if (course.maxStudents && currentEnrolled >= course.maxStudents) {
+                    alert(`Khóa học "${course.name}" đã đầy. Dừng ghi danh tại học viên "${studentData.name}".`);
+                    break;
+                }
+
+                state.enrollments.push({
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9) + enrolledCount,
+                    studentId: studentId,
+                    courseId: courseId,
+                    date: enrollDate,
+                    discountType: '',
+                    discountValue: 0,
+                    createdAt: new Date().toISOString()
+                });
+                enrolledCount++;
+            }
+
+            if (importedCount > 0) await storage.saveStudents();
+            if (enrolledCount > 0) await storage.saveEnrollments();
+
+            alert(`Hoàn tất!\n- Học viên mới được thêm: ${importedCount}\n- Ghi danh thành công: ${enrolledCount}`);
+
+            // Reset
+            state.importEnrollStudents = [];
+            if (previewSection) previewSection.style.display = 'none';
+            if (fileInput) fileInput.value = '';
+            if (fileName) fileName.textContent = 'Chưa chọn file';
+            if (typeof window.renderAll === 'function') await window.renderAll();
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            state.importEnrollStudents = [];
+            if (previewSection) previewSection.style.display = 'none';
+            if (fileInput) fileInput.value = '';
+            if (fileName) fileName.textContent = 'Chưa chọn file';
+        });
+    }
+
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', generateTemplate);
+    }
+
+    // Initial render of course dropdown
+    renderImportEnrollCourseDropdown();
 };
