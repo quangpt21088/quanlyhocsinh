@@ -29,7 +29,7 @@
 | merge-students.js | Merge students functionality | ~180 |
 | excel-import.js | Excel/CSV import (SheetJS + FileReader, browser-compatible) | ~260 |
 
-### Tổng số vấn đề đã sửa: 59 (55 cũ + 4 mới)
+### Tổng số vấn đề đã sửa: 61 (59 cũ + 2 mới)
 
 ### Tất cả bug đã sửa. Code sẵn sàng cho production.
 
@@ -237,6 +237,30 @@
   `state.admins` không bao giờ được load trước login (không gọi `storage.getAdmins()`), nên `state.admins.length > 0` luôn false. Nhánh `state.admins` là dead code.
 - **Hậu quả**: Không ảnh hưởng thực tế vì `localAdmins` fallback vẫn đọc đúng localStorage. Chỉ là logic thừa/dead code.
 - **Cách sửa**: Bỏ hoàn toàn việc tham chiếu `state.admins` trong login fallback, chỉ dùng `localStorage.getItem('admins')`.
+
+#### #56 — api.js handleAuthError reload khi chưa login (🔴 CRITICAL)
+- **File**: `modules/api.js:35-43`
+- **Nguyên nhân**: Sau fix #54, `handleAuthError` skip reload cho `/ping` và `/auth/login`. Nhưng khi `useServer = true` và user chưa login, `renderAll()` gọi `storage.getStudents()` → `api.get('students')` → server trả 401 (không có token) → `handleAuthError('/students')` → **không phải ping/login** → `window.location.reload()` → loop.
+- **Hậu quả**: F5 loop khi deploy — trang tải, gọi API, 401, reload, lặp lại vô hạn.
+- **Cách sửa**: Thêm check `!localStorage.getItem('token')` — nếu không có token (user chưa login), 401 là expected behavior, không cần reload.
+
+#### #57 — auth.js handleLogin không check null result (🔴 CRITICAL)
+- **File**: `modules/auth.js:37-43`
+- **Nguyên nhân**: Khi `api.post('auth/login')` trả 401, `handleAuthError` skip reload (fix #54/#56), `request()` trả về `null`. Nhưng `handleLogin` kiểm tra `result?.error` — `null?.error` = `undefined` (falsy) → rơi vào `localStorage.setItem('token', result.token)` → **TypeError: Cannot read properties of null**.
+- **Hậu quả**: Khi server trả 401 (sai mật khẩu), thay vì hiển thị lỗi, app crash với TypeError.
+- **Cách sửa**: Thêm check `!result` trước `result?.error`: `if (!result || result?.error)`.
+
+#### #58 — storage.js server-mode get*/ không set state (🔴 HIGH)
+- **File**: `modules/storage.js:19-28`, `37-46`, `55-64`
+- **Nguyên nhân**: Khi `useServer = true`, các method `getStudents()`, `getCourses()`, `getEnrollments()` dùng `return await api.get(...)` trực tiếp mà **không set `state.students`** (hay `state.courses`, `state.enrollments`). Chỉ có nhánh localStorage mới set state.
+- **Hậu quả**: Khi deploy với server, sau login `renderAll()` gọi `storage.getStudents()` → API trả data → nhưng `state.students` vẫn là `[]`. UI luôn hiển thị bảng trống dù server có dữ liệu.
+- **Cách sửa**: Thêm `if (data) state.students = data;` (tương tự cho courses, enrollments).
+
+#### #59 — storage.js getAttendances/getPaymentRecords/getAdmins cùng bug (🔴 HIGH)
+- **File**: `modules/storage.js:73-78`, `87-92`, `101-106`
+- **Nguyên nhân**: Tương tự #58 — server-mode không set `state.attendances`, `state.paymentRecords`, `state.admins`.
+- **Hậu quả**: Tab Điểm Danh, Thanh Toán, Quản Trị đều hiển thị trống khi deploy với server.
+- **Cách sửa**: Thêm `if (data) state.* = data;` cho cả 3 methods.
 
 ---
 

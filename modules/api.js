@@ -1,4 +1,4 @@
-// modules/api.js - API client layer
+import { state } from './state.js';
 const API_BASE = window.location.origin + '/api';
 
 export class ApiClient {
@@ -42,9 +42,15 @@ export class ApiClient {
         if (!localStorage.getItem('token')) {
             return;
         }
+        // Token exists but server returned 401 — token is invalid/expired.
+        // Clear session and show login screen (avoids F5 loop).
         localStorage.removeItem('token');
         sessionStorage.removeItem('currentAdmin');
-        window.location.reload();
+        if (state.currentAdmin) {
+            state.currentAdmin = null;
+            // Avoid circular dependency: call showLogin via window
+            if (typeof window.showLogin === 'function') window.showLogin();
+        }
     }
 
     async get(resource) {

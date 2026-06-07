@@ -45,6 +45,7 @@ window.handleCancelPaymentStatuses = handleCancelPaymentStatuses;
 window.mergeStudents = mergeStudents;
 window.handleCopyEnrollment = handleCopyEnrollment;
 window.storage = storage;
+window.showLogin = showLogin;
 
 // Initialize date inputs safely
 const initDates = () => {
