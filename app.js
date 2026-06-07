@@ -8,13 +8,13 @@ import { handleEnrollment, renderEnrollmentTable, removeEnrollment, startEnrollm
 import { renderAttendanceDropdowns, renderAttendanceMatrix, handleAddDate, handleSaveAttendance, deleteAttendanceDate } from './modules/attendance.js';
 import { renderPaymentDropdowns, handlePaymentSelect, renderPaymentStudents, renderPaymentDetails, selectPaymentStudent } from './modules/payment.js';
 import { renderReportDropdowns, handleReportPeriodChange, renderReport, handleYearChange, handleMonthChange, handleQuarterChange } from './modules/report.js';
-import { renderAdminTable, startAdminEdit, cancelAdminEdit, deleteAdmin } from './modules/admin.js';
+import { renderAdminTable, startAdminEdit, cancelAdminEdit, deleteAdmin, handleAdminSubmit } from './modules/admin.js';
 import { renderAll, renderSummary } from './modules/render-all.js';
 import { switchTab, showLogin, showApp, applyPermissions } from './modules/ui.js';
 import { openChangePassword, closeChangePassword, handlePasswordChange } from './modules/auth.js';
 import { handlePaymentConfirm, handleSavePaymentStatuses, handleCancelPaymentStatuses } from './modules/payment.js';
 import { mergeStudents, initMergeStudents, updateMergePreview } from './modules/merge-students.js';
-import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate, initImportEnroll } from './modules/excel-import.js';
+import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate, initImportEnroll, initCourseStudentImport } from './modules/excel-import.js';
 
 // Assign renderAll to window for circular dependency avoidance
 window.renderAll = renderAll;
@@ -213,12 +213,17 @@ const setupEventListeners = () => {
     if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
     if (changePasswordForm) changePasswordForm.addEventListener('submit', handlePasswordChange);
 
+    // Admin events
+    const adminForm = document.getElementById('adminForm');
+    if (adminForm) adminForm.addEventListener('submit', handleAdminSubmit);
+
     // Initialize merge students, copy enrollment, backup/restore, and excel import
     initMergeStudents();
     initCopyEnrollment();
     initBackupRestore();
     initExcelImport();
     initImportEnroll();
+    initCourseStudentImport();
 };
 
 // Backup/Restore initialization
@@ -353,7 +358,23 @@ const init = async () => {
     initDates();
     setupEventListeners();
     await storage.init();
-    
+
+    // Seed default super admin if no admins exist in localStorage
+    const existingAdmins = JSON.parse(localStorage.getItem('admins') || '[]');
+    if (existingAdmins.length === 0) {
+        const defaultAdmin = {
+            id: 'super_' + Date.now(),
+            username: 'admin',
+            passwordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+            name: 'Super Admin',
+            role: 'super',
+            permissions: '{}',
+            createdAt: new Date().toISOString()
+        };
+        localStorage.setItem('admins', JSON.stringify([defaultAdmin]));
+        state.admins = [defaultAdmin];
+    }
+
     const savedSession = sessionStorage.getItem('currentAdmin');
     if (savedSession) {
         state.currentAdmin = JSON.parse(savedSession);

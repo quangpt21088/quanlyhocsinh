@@ -27,7 +27,7 @@
 | admin.js | Admin CRUD | ~115 |
 | render-all.js | Render all + error handling | ~55 |
 | merge-students.js | Merge students functionality | ~180 |
-| excel-import.js | Excel/CSV import (SheetJS + FileReader, browser-compatible) | ~260 |
+| excel-import.js | Excel/CSV import + Import & Enroll (SheetJS + FileReader, browser-compatible) | ~380 |
 
 ### Tổng số vấn đề đã sửa: 61 (59 cũ + 2 mới)
 
@@ -328,6 +328,11 @@
 | 7 | Test toàn bộ flow trong browser (mở index.html và test từng tab) | 2-3 giờ |
 | 8 | ~~Sửa #50~~ — Đã sửa sẵn: `if (rowClass)` guard đã tồn tại trong payment.js | ✅ Done |
 | 9 | ~~Sửa #53~~ — Đã sửa: Di chuyển initBackupRestore definition lên trước initExcelImport | ✅ Done |
+| 17 | ~~Sửa #62~~ — Đã sửa: Thêm enrollMonth change handler + lọc khóa học theo tháng trong renderEnrollmentDropdowns | ✅ Done |
+| 18 | ~~Sửa #63~~ — Đã sửa: Thêm discountType change handler để enable/disable discountValue input | ✅ Done |
+| 19 | ~~Sửa #64~~ — Đã sửa: Thay inline onclick bằng event listener cho nút Xóa trong preview table | ✅ Done |
+| 20 | ~~Sửa #65~~ — Đã sửa: Thêm initImportEnroll() — toàn bộ logic Import Học Viên & Ghi Danh | ✅ Done |
+| 21 | ~~Sửa #66~~ — Đã sửa: Thêm server sync + page reload trong importBackup | ✅ Done |
 
 ### 🟢 ƯU TIÊN THẤP:
 
@@ -369,4 +374,3 @@ admin.js ← state.js, auth.js, storage.js
 render-all.js ← state.js, student.js, course.js, enrollment.js, attendance.js, payment.js, report.js, admin.js
 merge-students.js ← state.js, auth.js, storage.js, utils.js
 excel-import.js ← state.js, storage.js, utils.js
-```

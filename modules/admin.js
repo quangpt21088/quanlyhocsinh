@@ -33,6 +33,7 @@ export const renderAdminTable = () => {
 
         const isSelf = admin.id === state.currentAdmin?.id;
         const roleLabel = admin.role === 'super' ? 'Super Admin' : 'Quản Trị Viên';
+        const canChangePassword = state.currentAdmin?.role === 'super';
 
         tr.innerHTML = `
             <td>${escapeHtml(admin.username)}</td>
@@ -41,7 +42,7 @@ export const renderAdminTable = () => {
             <td><div class="permission-tags">${permTags.join('')}</div></td>
             <td class="actions-cell">
                 <button class="btn btn-sm btn-secondary" onclick="startAdminEdit('${admin.id}')">Sửa</button>
-                <button class="btn btn-sm btn-accent" onclick="openChangePassword('${admin.id}')">Đổi MK</button>
+                ${canChangePassword ? `<button class="btn btn-sm btn-accent" onclick="openChangePassword('${admin.id}')">Đổi MK</button>` : ''}
                 ${!isSelf ? `<button class="btn btn-sm btn-danger" onclick="deleteAdmin('${admin.id}')">Xóa</button>` : ''}
             </td>
         `;
@@ -114,4 +115,87 @@ export const deleteAdmin = async id => {
     state.admins = state.admins.filter(a => a.id !== id);
     await storage.saveAdmins();
     renderAdminTable();
+};
+
+export const handleAdminSubmit = async e => {
+    e.preventDefault();
+    if (!state.currentAdmin || state.currentAdmin.role !== 'super') {
+        alert('Chỉ Super Admin mới có quyền quản lý quản trị viên.');
+        return;
+    }
+
+    const username = document.getElementById('adminUsername')?.value.trim();
+    const password = document.getElementById('adminPassword')?.value;
+    const name = document.getElementById('adminName')?.value.trim();
+    const role = document.getElementById('adminRole')?.value;
+    const permissions = readPermissionMatrix();
+
+    if (!username) {
+        alert('Vui lòng nhập tên đăng nhập.');
+        return;
+    }
+    if (!name) {
+        alert('Vui lòng nhập họ tên.');
+        return;
+    }
+
+    const isEdit = !!state.editingAdminId;
+
+    if (isEdit) {
+        const index = state.admins.findIndex(a => a.id === state.editingAdminId);
+        if (index !== -1) {
+            const current = state.admins[index];
+            // Check duplicate username (exclude self)
+            if (state.admins.some(a => a.username === username && a.id !== current.id)) {
+                alert('Tên đăng nhập đã tồn tại.');
+                return;
+            }
+            state.admins[index] = {
+                ...current,
+                username,
+                name,
+                role,
+                permissions,
+                updatedAt: new Date().toISOString()
+            };
+            // Update password only if provided
+            if (password && password.length > 0) {
+                if (password.length < 4) {
+                    alert('Mật khẩu phải có ít nhất 4 ký tự.');
+                    return;
+                }
+                const { hashPassword } = await import('./auth.js');
+                state.admins[index].passwordHash = await hashPassword(password);
+            }
+        }
+        cancelAdminEdit();
+        await storage.saveAdmins();
+        renderAdminTable();
+        alert('Cập nhật quản trị viên thành công!');
+    } else {
+        // Create new admin
+        if (!password || password.length < 4) {
+            alert('Mật khẩu phải có ít nhất 4 ký tự.');
+            return;
+        }
+        if (state.admins.some(a => a.username === username)) {
+            alert('Tên đăng nhập đã tồn tại.');
+            return;
+        }
+        const { hashPassword } = await import('./auth.js');
+        const passwordHash = await hashPassword(password);
+        state.admins.push({
+            id: Date.now().toString(),
+            username,
+            name,
+            role,
+            permissions,
+            passwordHash,
+            createdAt: new Date().toISOString()
+        });
+        cancelAdminEdit();
+        await storage.saveAdmins();
+        renderAdminTable();
+        alert('Thêm quản trị viên thành công!');
+    }
 };

@@ -456,6 +456,48 @@
                 </div>
             </section>
 
+            <!-- Import Courses from Excel -->
+            <section class="form-section">
+                <h2>Import Khóa Học Từ Excel</h2>
+                <p class="form-hint">Tải file mẫu, điền danh sách khóa học → hệ thống tự tạo tất cả khóa học trong file.</p>
+                <div class="import-instructions">
+                    <p><strong>Hướng dẫn:</strong> File Excel cần có các cột: Tên Khóa Học, Giảng Viên, Tháng, Học Phí, Sĩ Số Tối Đa, Trạng Thái</p>
+                    <button class="btn btn-secondary" id="downloadCourseTemplateBtn">Tải File Mẫu</button>
+                </div>
+                <div class="import-upload">
+                    <input type="file" id="courseFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+                    <button class="btn btn-primary" id="uploadCourseBtn">Chọn File Excel</button>
+                    <span id="courseFileName" class="file-name">Chưa chọn file</span>
+                </div>
+
+                <!-- Preview Table (hidden by default) -->
+                <div id="courseImportPreview" style="display:none;">
+                    <h3 style="margin: 1.5rem 0 1rem; color: var(--primary-dark);">Xem Trước Dữ Liệu (<span id="coursePreviewCount">0</span> khóa học)</h3>
+                    <div class="table-section" style="box-shadow: none; padding: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Tên Khóa Học</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Tháng</th>
+                                    <th>Học Phí</th>
+                                    <th>Sĩ Số</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coursePreviewTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" id="importAllCoursesBtn">Import Tất Cả</button>
+                        <button class="btn btn-secondary" id="cancelCourseImportBtn">Hủy</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- Course Table -->
             <section class="table-section">
                 <h2 style="margin-bottom: 1rem; color: var(--primary-dark);">Danh Sách Khóa Học</h2>
@@ -694,6 +736,52 @@
                     <div class="form-actions">
                         <button class="btn btn-primary" id="importEnrollAllBtn">Import & Ghi Danh Tất Cả</button>
                         <button class="btn btn-secondary" id="cancelImportEnrollBtn">Hủy</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Import Students & Courses from Excel -->
+            <section class="form-section">
+                <h2>Import Học Viên & Khóa Học Từ Excel</h2>
+                <p class="form-hint">File Excel chứa cả thông tin học viên và khóa học. Hệ thống sẽ tự động: tạo khóa học mới nếu chưa có, tạo học viên mới nếu chưa có, và ghi danh học viên vào khóa học tương ứng.</p>
+                <div class="import-instructions">
+                    <p><strong>Hướng dẫn:</strong> File Excel cần có các cột: <strong>Họ Tên, Số Điện Thoại, Tên Khóa Học, Giảng Viên, Tháng, Học Phí, Sĩ Số Tối Đa, Ngày Ghi Danh</strong>. Các cột bổ sung: Ngày Sinh, Giới Tính, Email, Địa Chỉ.</p>
+                    <p style="margin-top:0.5rem; color:var(--text-light); font-size:0.85rem;">💡 Nếu khóa học (Tên + Tháng) đã tồn tại → dùng khóa học cũ. Nếu học viên (SĐT) đã tồn tại → dùng học viên cũ. Hệ thống chỉ tạo mới khi cần.</p>
+                    <button class="btn btn-secondary" id="downloadCourseStudentTemplateBtn">Tải File Mẫu</button>
+                </div>
+                <div class="import-upload">
+                    <input type="file" id="courseStudentFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+                    <button class="btn btn-primary" id="uploadCourseStudentBtn">Chọn File Excel</button>
+                    <span id="courseStudentFileName" class="file-name">Chưa chọn file</span>
+                </div>
+
+                <!-- Preview Table (hidden by default) -->
+                <div id="courseStudentImportPreview" style="display:none;">
+                    <h3 style="margin: 1.5rem 0 1rem; color: var(--primary-dark);">Xem Trước Dữ Liệu (<span id="courseStudentPreviewCount">0</span> bản ghi)</h3>
+                    <div class="table-section" style="box-shadow: none; padding: 0;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ Tên</th>
+                                    <th>SĐT</th>
+                                    <th>Tên Khóa Học</th>
+                                    <th>Giảng Viên</th>
+                                    <th>Tháng</th>
+                                    <th>Học Phí</th>
+                                    <th>Sĩ Số</th>
+                                    <th>Ngày Ghi Danh</th>
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="courseStudentPreviewBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" id="importAllCourseStudentBtn">Import Tất Cả</button>
+                        <button class="btn btn-secondary" id="cancelCourseStudentImportBtn">Hủy</button>
                     </div>
                 </div>
             </section>
