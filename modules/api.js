@@ -37,6 +37,11 @@ export class ApiClient {
         if (endpoint === '/ping' || endpoint === '/auth/login') {
             return;
         }
+        // Don't reload if user is not logged in — renderAll may call API endpoints
+        // before login, and 401 is expected when there's no session token
+        if (!localStorage.getItem('token')) {
+            return;
+        }
         localStorage.removeItem('token');
         sessionStorage.removeItem('currentAdmin');
         window.location.reload();

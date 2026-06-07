@@ -36,9 +36,9 @@ export const handleLogin = async e => {
     try {
         const result = await api.post('auth/login', { username, password });
 
-        if (result?.error) {
+        if (!result || result?.error) {
             const loginErrorEl = document.getElementById('loginError');
-            if (loginErrorEl) loginErrorEl.textContent = result.error;
+            if (loginErrorEl) loginErrorEl.textContent = result?.error || 'Sai tên đăng nhập hoặc mật khẩu.';
             return;
         }
 

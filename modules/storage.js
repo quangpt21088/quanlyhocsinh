@@ -17,7 +17,11 @@ export class StorageManager {
     }
 
     async getStudents() {
-        if (this.useServer) return await api.get('students');
+        if (this.useServer) {
+            const data = await api.get('students');
+            if (data) state.students = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('students') || '[]');
         state.students = data;
         return data;
@@ -31,7 +35,11 @@ export class StorageManager {
     }
 
     async getCourses() {
-        if (this.useServer) return await api.get('courses');
+        if (this.useServer) {
+            const data = await api.get('courses');
+            if (data) state.courses = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('courses') || '[]');
         state.courses = data;
         return data;
@@ -45,7 +53,11 @@ export class StorageManager {
     }
 
     async getEnrollments() {
-        if (this.useServer) return await api.get('enrollments');
+        if (this.useServer) {
+            const data = await api.get('enrollments');
+            if (data) state.enrollments = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('enrollments') || '[]');
         state.enrollments = data;
         return data;
@@ -59,7 +71,11 @@ export class StorageManager {
     }
 
     async getAttendances() {
-        if (this.useServer) return await api.get('attendances');
+        if (this.useServer) {
+            const data = await api.get('attendances');
+            if (data) state.attendances = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('attendances') || '[]');
         state.attendances = data;
         return data;
@@ -73,7 +89,11 @@ export class StorageManager {
     }
 
     async getPaymentRecords() {
-        if (this.useServer) return await api.get('payments');
+        if (this.useServer) {
+            const data = await api.get('payments');
+            if (data) state.paymentRecords = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('paymentRecords') || '[]');
         state.paymentRecords = data;
         return data;
@@ -87,7 +107,11 @@ export class StorageManager {
     }
 
     async getAdmins() {
-        if (this.useServer) return await api.get('admins');
+        if (this.useServer) {
+            const data = await api.get('admins');
+            if (data) state.admins = data;
+            return data;
+        }
         const data = JSON.parse(localStorage.getItem('admins') || '[]');
         state.admins = data;
         return data;

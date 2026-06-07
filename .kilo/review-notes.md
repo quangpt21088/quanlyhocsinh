@@ -29,7 +29,7 @@
 | merge-students.js | Merge students functionality | ~180 |
 | excel-import.js | Excel/CSV import (SheetJS + FileReader, browser-compatible) | ~260 |
 
-### Tổng số vấn đề đã sửa: 53 (43 cũ + 10 mới)
+### Tổng số vấn đề đã sửa: 59 (55 cũ + 4 mới)
 
 ### Tất cả bug đã sửa. Code sẵn sàng cho production.
 
@@ -197,6 +197,46 @@
 - **Nguyên nhân**: `initBackupRestore()` được gọi ở line 191 nhưng định nghĩa ở line 195. Vì `initBackupRestore` là `const` arrow function, nó **không được hoisted**. Tuy nhiên, `init()` được gọi ở line 260 (cuối file), lúc đó `initBackupRestore` đã được định nghĩa. Nên **không crash**, nhưng fragile.
 - **Hậu quả**: Nếu ai đó di chuyển `init()` call lên trước, sẽ crash `ReferenceError`.
 - **Cách sửa**: Di chuyển định nghĩa `initBackupRestore` lên trên dòng `setupEventListeners` hoặc trước `init()`.
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-07) — ĐÃ SỬA HẾT
+
+### Tổng số lỗi mới: 6 (tất cả đã sửa ✅)
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 54 | api.js - `handleAuthError()` gọi `window.location.reload()` trên mọi 401 → F5 loop vô hình khi server trả 401 trên ping hoặc login | 🔴 CRITICAL | ✅ |
+| 55 | auth.js - Login fallback dùng `state.admins` (luôn `[]`) thay vì đọc trực tiếp localStorage → dead code, không ảnh hưởng thực tế nhưng logic sai | 🟢 LOW | ✅ |
+| 56 | api.js - `handleAuthError()` reload khi `renderAll` gọi API mà chưa login (không có token) → F5 loop tương tự #54 | 🔴 CRITICAL | ✅ |
+| 57 | auth.js - `handleLogin` không check `result === null` trước khi access `result.token` → TypeError khi server trả 401 | 🔴 CRITICAL | ✅ |
+| 58 | storage.js - Server-mode `getStudents()`/`getCourses()`/`getEnrollments()` không set `state.*` khi dùng API → UI luôn hiển thị trống khi deploy | 🔴 HIGH | ✅ |
+| 59 | storage.js - `getAttendances()`/`getPaymentRecords()`/`getAdmins()` cùng bug #58 — server-mode không set `state.*` | 🔴 HIGH | ✅ |
+
+### Mô tả chi tiết
+
+#### #54 — api.js handleAuthError gây infinite reload loop (🔴 CRITICAL)
+- **File**: `modules/api.js:35-38`
+- **Nguyên nhân**: `handleAuthError()` được gọi khi bất kỳ API request nào trả về 401. Hàm này luôn gọi `window.location.reload()`. Vòng lặp:
+  1. `storage.init()` gọi `api.get('ping')` → server trả 401 → `handleAuthError()` → `reload()`
+  2. Reload → `init()` → `storage.init()` → `api.get('ping')` → 401 → reload() → **vô hạn**
+  3. Tương tự nếu `auth/login` trả 401 → reload → `init()` → ping 401 → reload → loop
+- **Hậu quả**: Trang web F5 liên tạc không dừng, user không thể login.
+- **Cách sửa**: Thêm `endpoint` parameter vào `handleAuthError()`, skip reload cho `/ping` và `/auth/login`. Hai endpoint này cần xử lý graceful (ping → fallback localStorage, login → fallback check).
+
+#### #55 — auth.js login fallback logic sai (🟢 LOW)
+- **File**: `modules/auth.js:52` (trước khi sửa)
+- **Nguyên nhân**:
+  ```js
+  // Trước (sai — state.admins luôn [] nên nhánh state.admins chạy không bao giờ):
+  const localAdmins = JSON.parse(localStorage.getItem('admins') || '[]');
+  const admins = localAdmins.length > 0 ? localAdmins : (state.admins.length > 0 ? state.admins : []);
+  // Sau (đúng — đọc trực tiếp localStorage):
+  const admins = JSON.parse(localStorage.getItem('admins') || '[]');
+  ```
+  `state.admins` không bao giờ được load trước login (không gọi `storage.getAdmins()`), nên `state.admins.length > 0` luôn false. Nhánh `state.admins` là dead code.
+- **Hậu quả**: Không ảnh hưởng thực tế vì `localAdmins` fallback vẫn đọc đúng localStorage. Chỉ là logic thừa/dead code.
+- **Cách sửa**: Bỏ hoàn toàn việc tham chiếu `state.admins` trong login fallback, chỉ dùng `localStorage.getItem('admins')`.
 
 ---
 
