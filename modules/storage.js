@@ -119,14 +119,12 @@ export class StorageManager {
 
     async saveAdmins() {
         if (this.useServer) {
-            // Sync each admin individually via PUT (batch endpoint not available)
             for (const admin of state.admins) {
                 await api.put('admins', admin.id, {
                     username: admin.username,
                     name: admin.name,
                     role: admin.role,
-                    permissions: admin.permissions,
-                    passwordHash: admin.passwordHash
+                    permissions: admin.permissions
                 });
             }
             return;

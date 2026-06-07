@@ -370,6 +370,8 @@
 | 29 | ~~Sửa #72~~ — Đã sửa: saveAdmins() dùng PUT từng admin thay vì batch API | ✅ Done |
 | 30 | ~~Sửa #73~~ — Đã sửa: deleteAdmin dùng DELETE /admins/:id API | ✅ Done |
 | 31 | ~~Sửa #74~~ — Đã sửa: handleAdminSubmit dùng POST /admins cho create mới | ✅ Done |
+| 32 | ~~Sửa #75~~ — Đã sửa: createAdmin backend nhận id từ request; frontend dùng response id | ✅ Done |
+| 33 | ~~Sửa #76~~ — Đã sửa: edit admin gửi password (plain) thay vì passwordHash cho backend | ✅ Done |
 
 ### 🟡 ƯU TIÊN TRUNG BÌNH:
 

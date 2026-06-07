@@ -40,7 +40,7 @@ const getAdminById = async (id) => {
 
 const createAdmin = async (data) => {
     const pool = getPool();
-    const id = 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const id = data.id || ('admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
     const permissions = data.permissions ? JSON.stringify(data.permissions) : '{}';
     await pool.query('INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1,$2,$3,$4,$5,$6)', [id, data.username, hashPassword(data.password), data.name, data.role || 'admin', permissions]);
     return getAdminById(id);
