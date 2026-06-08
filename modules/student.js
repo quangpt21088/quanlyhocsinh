@@ -2,7 +2,8 @@
 import { state } from './state.js';
 import { checkPermission } from './auth.js';
 import { storage } from './storage.js';
-import { getStudentCourseCount, getStudentCourses, formatDate, getStatusClass, escapeHtml, formatCurrency, formatCourseName } from './utils.js';
+import { api } from './api.js';
+import { getStudentCourseCount, getStudentCourses, formatDate, getStatusClass, escapeHtml, formatCurrency, formatCourseName, generateId } from './utils.js';
 
 // Use window.renderAll to avoid circular dependency
 const doRenderAll = () => { if (typeof window.renderAll === 'function') return window.renderAll(); };
@@ -27,20 +28,25 @@ export const handleStudentSubmit = async e => {
         if (index !== -1) {
             state.students[index] = { ...state.students[index], name, phone, email, dob, gender, address, status };
         }
+        if (storage.useServer) {
+            await api.put('students', state.editingStudentId, { name, phone, email, dob, gender, address, status });
+        }
         cancelStudentEdit();
     } else {
-        if (phone && state.students.some(s => s.phone === phone)) {
-            alert('Số điện thoại này đã tồn tại trong hệ thống.');
-            return;
-        }
+        const newId = 'st_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
         state.students.push({
-            id: Date.now().toString(),
+            id: newId,
             name, phone, email, dob, gender, address, status,
             createdAt: new Date().toISOString()
         });
+        if (storage.useServer) {
+            await api.post('students', { id: newId, name, phone, email, dob, gender, address, status, createdAt: new Date().toISOString() });
+        }
     }
 
-    await storage.saveStudents();
+    if (!storage.useServer) {
+        await storage.saveStudents();
+    }
     const studentFormEl = document.getElementById('studentForm');
     if (studentFormEl) studentFormEl.reset();
     await doRenderAll();
@@ -52,11 +58,26 @@ export const deleteStudent = async id => {
     
     if (courseCount > 0 && !confirm(`Học viên này đang ghi danh ${courseCount} khóa học. Xóa học viên sẽ xóa tất cả ghi danh và điểm danh. Tiếp tục?`)) return;
     if (courseCount === 0 && !confirm('Xóa học viên này?')) return;
-    
+
+    // Remove from state first
+    state.enrollments = state.enrollments.filter(e => e.studentId !== id);
     state.attendances = state.attendances.filter(a => a.studentId !== id);
-    await storage.saveAttendances();
+    state.paymentRecords = state.paymentRecords.filter(p => p.studentId !== id);
     state.students = state.students.filter(s => s.id !== id);
-    await storage.saveStudents();
+
+    // Delete on server via API (cascades to enrollments/attendances/payment_records)
+    if (storage.useServer) {
+        await api.delete('students', id);
+    }
+
+    // Sync remaining data (batch save for offline mode, or extra safety for server mode)
+    if (!storage.useServer) {
+        await storage.saveStudents();
+        await storage.saveEnrollments();
+        await storage.saveAttendances();
+        await storage.savePaymentRecords();
+    }
+
     await doRenderAll();
 };
 
@@ -269,13 +290,22 @@ export const handleDeleteFilteredStudents = async () => {
     const idsToDelete = new Set(filtered.map(s => s.id));
 
     state.enrollments = state.enrollments.filter(e => !idsToDelete.has(e.studentId));
-    await storage.saveEnrollments();
-
     state.attendances = state.attendances.filter(a => !idsToDelete.has(a.studentId));
-    await storage.saveAttendances();
-
+    state.paymentRecords = state.paymentRecords.filter(p => !idsToDelete.has(p.studentId));
     state.students = state.students.filter(s => !idsToDelete.has(s.id));
-    await storage.saveStudents();
+
+    if (storage.useServer) {
+        for (const id of idsToDelete) {
+            await api.delete('students', id);
+        }
+    }
+
+    if (!storage.useServer) {
+        await storage.saveStudents();
+        await storage.saveEnrollments();
+        await storage.saveAttendances();
+        await storage.savePaymentRecords();
+    }
 
     await doRenderAll();
     alert(`Đã xóa thành công ${filtered.length} học viên.`);

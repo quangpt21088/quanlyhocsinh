@@ -1,6 +1,10 @@
 // modules/utils.js - Utility functions
 import { state } from './state.js';
 
+export const generateId = (prefix = '') => {
+    return prefix + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+};
+
 export const formatCurrency = amount => {
     if (typeof amount !== 'number' || isNaN(amount)) return '0 ₫';
     return amount.toLocaleString('vi-VN') + ' ₫';

@@ -14,7 +14,7 @@ import { switchTab, showLogin, showApp, applyPermissions } from './modules/ui.js
 import { openChangePassword, closeChangePassword, handlePasswordChange } from './modules/auth.js';
 import { handlePaymentConfirm, handleSavePaymentStatuses, handleCancelPaymentStatuses } from './modules/payment.js';
 import { mergeStudents, initMergeStudents, updateMergePreview } from './modules/merge-students.js';
-import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate, initImportEnroll, initCourseStudentImport } from './modules/excel-import.js';
+import { parseExcelFile, renderPreviewTable, importStudents, generateTemplate, initImportEnroll, initCourseStudentImport, initCourseImport } from './modules/excel-import.js';
 
 // Assign renderAll to window for circular dependency avoidance
 window.renderAll = renderAll;
@@ -224,6 +224,7 @@ const setupEventListeners = () => {
     initExcelImport();
     initImportEnroll();
     initCourseStudentImport();
+    initCourseImport();
 };
 
 // Backup/Restore initialization

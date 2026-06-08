@@ -24,7 +24,7 @@
 | attendance.js | Attendance matrix | ~215 |
 | payment.js | Payment + batch status + permission checks | ~370 |
 | report.js | Report + date handling | ~380 |
-| admin.js | Admin CRUD + handleAdminSubmit + API sync | ~210 |
+| admin.js | Admin CRUD + handleAdminSubmit + API sync | ~228 |
 | render-all.js | Render all + error handling | ~55 |
 | merge-students.js | Merge students functionality | ~180 |
 | excel-import.js | Excel/CSV import + Import & Enroll + Import Course + Import Course&Student | ~620 |
@@ -348,8 +348,18 @@
 
 #### #74 — handleAdminSubmit tạo admin mới không gọi POST /admins (🟡 MEDIUM)
 - **File**: `modules/admin.js` (handleAdminSubmit, nhánh create)
-- **Nguyên nhân**: Khi tạo admin mới, chỉ push vào `state.admins` và gọi `storage.saveAdmins()` (dùng PUT). Nhưng admin mới chưa tồn tại trên server nên PUT sẽ fail hoặc không có hiệu quả.
+- **Nguyên nhân**: Khi tạo admin mới, chỉ push vào `state.admins` và gọi `storage.saveAdmins()` (dùng PUT). Nhưng admin mới chưa tồn tại trên server nen PUT sẽ fail.
 - **Cách sửa**: Gọi `api.post('admins', {...})` rồi mới push vào state.
+
+#### #75 — createAdmin backend tự tạo id, frontend dùng id khác → id mismatch (🔴 CRITICAL)
+- **File**: `backend/auth.js:41-47` (createAdmin), `modules/admin.js` (handleAdminSubmit create)
+- **Nguyên nhân**: Backend `createAdmin` luôn tạo id mới (`admin_ + Date.now()`), bất kể request có gửi `id` hay không. Frontend push admin vào state với `newId` (do `Date.now()` ở client), nhưng DB lưu với id khác. Khi admin mới đăng nhập, token chứa id từ DB, nhưng frontend state dùng `newId` → mismatch → không đăng nhập được.
+- **Cách sửa**: Sửa backend `createAdmin` để dùng `data.id` nếu có. Frontend cập nhật state từ response trả về.
+
+#### #76 — edit admin gửi passwordHash thay vì password plain text (🟡 MEDIUM)
+- **File**: `modules/admin.js` (handleAdminSubmit edit), `backend/auth.js:49-56` (updateAdmin)
+- **Nguyên nhân**: Frontend hash password rồi gửi `passwordHash` lên backend qua `storage.saveAdmins()`. Nhưng backend `updateAdmin` expect `data.password` (plain text) để tự hash.
+- **Cách sửa**: Trong `handleAdminSubmit` edit, gọi `api.put('admins', id, {..., password: plainPassword})` trực tiếp thay vì qua `storage.saveAdmins()`.
 
 ---
 
