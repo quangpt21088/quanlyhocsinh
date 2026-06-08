@@ -75,10 +75,10 @@ async function init() {
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
         );`);
-        // Always ensure default super admin exists (upsert on fixed id)
+        // Always ensure default super admin exists (upsert on username)
         const id = 'super_default_001';
         await client.query(
-            'INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET password_hash=$3, role=$5',
+            'INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (username) DO UPDATE SET id=$1, password_hash=$3, role=$5',
             [id, 'admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'Super Admin', 'super', '{}']
         );
         console.log('Default super admin ensured: admin / admin');
