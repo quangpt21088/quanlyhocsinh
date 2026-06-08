@@ -21,8 +21,10 @@ export class ApiClient {
             });
 
             if (response.status === 401) {
+                const body = await response.json().catch(() => ({}));
                 this.handleAuthError(endpoint);
-                return null;
+                // Return body with error info instead of null so caller can show proper message
+                return body.error ? { error: body.error } : null;
             }
 
             return await response.json();

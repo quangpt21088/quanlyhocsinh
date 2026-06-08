@@ -77,11 +77,12 @@ async function init() {
         );`);
         const superAdmin = await client.query("SELECT id FROM admins WHERE role = 'super' LIMIT 1");
         if (superAdmin.rows.length === 0) {
-            const id = 'super_' + Date.now();
+            const id = 'super_default_001';
             await client.query(
-                'INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1, $2, $3, $4, $5, $6)',
+                'INSERT INTO admins (id, username, password_hash, name, role, permissions) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET password_hash=$3',
                 [id, 'admin', '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 'Super Admin', 'super', '{}']
             );
+            console.log('Default super admin created: admin / admin');
         }
     } finally {
         client.release();

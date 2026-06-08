@@ -36,9 +36,16 @@ export const handleLogin = async e => {
     try {
         const result = await api.post('auth/login', { username, password });
 
-        if (!result || result?.error) {
+        if (!result) {
+            // API returned null (network error / 401 handled by api layer)
             const loginErrorEl = document.getElementById('loginError');
-            if (loginErrorEl) loginErrorEl.textContent = result?.error || 'Sai tên đăng nhập hoặc mật khẩu.';
+            if (loginErrorEl) loginErrorEl.textContent = 'Lỗi kết nối server.';
+            return;
+        }
+
+        if (result.error) {
+            const loginErrorEl = document.getElementById('loginError');
+            if (loginErrorEl) loginErrorEl.textContent = result.error;
             return;
         }
 

@@ -17,14 +17,15 @@ export const renderAll = async () => {
         await Promise.all([
             storage.getStudents(),
             storage.getCourses(),
-            storage.getEnrollments()
+            storage.getEnrollments(),
+            storage.getAdmins()
         ]);
     } catch (err) {
         console.error('Error loading data:', err);
-        // Fallback to empty arrays
         if (!state.students.length) state.students = [];
         if (!state.courses.length) state.courses = [];
         if (!state.enrollments.length) state.enrollments = [];
+        if (!state.admins.length) state.admins = [];
     }
 
     try {
