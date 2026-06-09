@@ -135,8 +135,13 @@ export const handleEnrollment = async e => {
                 discountValue: discValue
             };
         }
+        if (storage.useServer) {
+            await api.put('enrollments', state.editingEnrollmentId, { studentId, courseId, date, discountType: discType, discountValue: discValue });
+        }
         cancelEnrollmentEdit();
-        await storage.saveEnrollments();
+        if (!storage.useServer) {
+            await storage.saveEnrollments();
+        }
         await doRenderAll();
         alert('Cập nhật ghi danh thành công!');
         return;
@@ -158,17 +163,23 @@ export const handleEnrollment = async e => {
         }
     }
 
-    state.enrollments.push({
-        id: Date.now().toString(),
+    const newId = 'en_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    const newEnrollment = {
+        id: newId,
         studentId,
         courseId,
         date,
         discountType: discType,
         discountValue: discValue,
         createdAt: new Date().toISOString()
-    });
+    };
+    state.enrollments.push(newEnrollment);
 
-    await storage.saveEnrollments();
+    if (storage.useServer) {
+        await api.post('enrollments', newEnrollment);
+    } else {
+        await storage.saveEnrollments();
+    }
     const enrollmentForm = document.getElementById('enrollmentForm');
     if (enrollmentForm) enrollmentForm.reset();
     
@@ -187,7 +198,11 @@ export const removeEnrollment = async id => {
     if (!confirm('Xóa ghi danh này?')) return;
     
     state.enrollments = state.enrollments.filter(e => e.id !== id);
-    await storage.saveEnrollments();
+    if (storage.useServer) {
+        await api.delete('enrollments', id);
+    } else {
+        await storage.saveEnrollments();
+    }
     await doRenderAll();
 };
 
@@ -327,8 +342,15 @@ export const handleDeleteAllEnrollments = async () => {
     if (!confirm('Bạn có chắc muốn xóa TOÀN BỘ ghi danh? Hành động này không thể hoàn tác.')) return;
     if (!confirm('Xác nhận lần 2: Xóa tất cả ' + state.enrollments.length + ' ghi danh?')) return;
     
+    if (storage.useServer) {
+        for (const e of state.enrollments) {
+            await api.delete('enrollments', e.id);
+        }
+    }
     state.enrollments = [];
-    await storage.saveEnrollments();
+    if (!storage.useServer) {
+        await storage.saveEnrollments();
+    }
     await doRenderAll();
 };
 
@@ -466,7 +488,13 @@ export const handleCopyEnrollment = async () => {
     if (!confirm(confirmMsg)) return;
 
     state.enrollments.push(...newEnrollments);
-    await storage.saveEnrollments();
+    if (storage.useServer) {
+        for (const e of newEnrollments) {
+            await api.post('enrollments', e);
+        }
+    } else {
+        await storage.saveEnrollments();
+    }
     await doRenderAll();
 
     // Reset form

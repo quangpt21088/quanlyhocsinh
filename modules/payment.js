@@ -16,7 +16,7 @@ export const renderPaymentDropdowns = selectedMonth => {
         : state.courses;
     
     filteredCourses.forEach(c => {
-        paymentCourseSelect.innerHTML += `<option value="${c.id}">${formatCourseName(c)}</option>`;
+        paymentCourseSelect.innerHTML += `<option value="${c.id}">${escapeHtml(formatCourseName(c))}</option>`;
     });
     paymentCourseSelect.value = currentCourse;
 };
@@ -295,6 +295,7 @@ export const handlePaymentConfirm = async () => {
         r.month === state.paymentSelectedMonth
     );
 
+    const now = new Date().toISOString();
     const record = {
         id: existingIndex !== -1 ? state.paymentRecords[existingIndex].id : generateId('pay_'),
         studentId: state.paymentSelectedStudentId,
@@ -302,16 +303,25 @@ export const handlePaymentConfirm = async () => {
         month: state.paymentSelectedMonth,
         status: status,
         method: method,
-        updatedAt: new Date().toISOString()
+        createdAt: existingIndex !== -1 ? state.paymentRecords[existingIndex].createdAt : now,
+        updatedAt: now
     };
 
     if (existingIndex !== -1) {
         state.paymentRecords[existingIndex] = record;
+        if (storage.useServer) {
+            await api.put('payments', record.id, { studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method });
+        }
     } else {
         state.paymentRecords.push(record);
+        if (storage.useServer) {
+            await api.post('payments', { id: record.id, studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method, createdAt: record.createdAt });
+        }
     }
 
-    await storage.savePaymentRecords();
+    if (!storage.useServer) {
+        await storage.savePaymentRecords();
+    }
     alert('Cập nhật trạng thái thanh toán thành công!');
     if (state.paymentSelectedCourseId && state.paymentSelectedMonth) {
         renderPaymentStudents(state.paymentSelectedCourseId, state.paymentSelectedStatus, state.paymentSelectedMonth);
@@ -328,6 +338,7 @@ export const handleSavePaymentStatuses = async () => {
     const statusSelects = document.querySelectorAll('.payment-status-select');
     let updatedCount = 0;
 
+    const toCreate = [];
     statusSelects.forEach(select => {
         const studentId = select.dataset.studentId;
         const newStatus = select.value;
@@ -341,23 +352,37 @@ export const handleSavePaymentStatuses = async () => {
         if (existingIndex !== -1) {
             state.paymentRecords[existingIndex].status = newStatus;
             state.paymentRecords[existingIndex].updatedAt = new Date().toISOString();
+            if (storage.useServer) {
+                const r = state.paymentRecords[existingIndex];
+                api.put('payments', r.id, { studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method });
+            }
         } else {
             if (newStatus !== 'Chưa thanh toán') {
-                state.paymentRecords.push({
+                const now = new Date().toISOString();
+                const newRecord = {
                     id: generateId('pay_'),
                     studentId: studentId,
                     courseId: state.paymentSelectedCourseId,
                     month: state.paymentSelectedMonth,
                     status: newStatus,
                     method: '',
-                    updatedAt: new Date().toISOString()
-                });
+                    createdAt: now,
+                    updatedAt: now
+                };
+                state.paymentRecords.push(newRecord);
+                toCreate.push(newRecord);
             }
         }
         updatedCount++;
     });
 
-    await storage.savePaymentRecords();
+    if (storage.useServer) {
+        for (const r of toCreate) {
+            await api.post('payments', { id: r.id, studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method, createdAt: r.createdAt });
+        }
+    } else {
+        await storage.savePaymentRecords();
+    }
     alert(`Đã cập nhật trạng thái thanh toán cho ${updatedCount} học viên!`);
     renderPaymentStudents(state.paymentSelectedCourseId, state.paymentSelectedStatus, state.paymentSelectedMonth);
 };

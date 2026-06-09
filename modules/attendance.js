@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { checkPermission } from './auth.js';
 import { storage } from './storage.js';
-import { formatDate, getCourseAttendanceDates, escapeHtml } from './utils.js';
+import { formatDate, getCourseAttendanceDates, escapeHtml, generateId } from './utils.js';
 
 export const renderAttendanceDropdowns = () => {
     const attendCourse = document.getElementById('attendCourse');
@@ -13,7 +13,8 @@ export const renderAttendanceDropdowns = () => {
     attendCourse.innerHTML = '<option value="">Chọn khóa học</option>';
     const filteredCourses = state.courses.filter(c => c.status === 'Đang mở');
     filteredCourses.forEach(c => {
-        attendCourse.innerHTML += `<option value="${c.id}">${escapeHtml(c.name)}${c.month ? ' - Tháng ' + c.month : ''}</option>`;
+        const name = c.month ? `${c.name} - Tháng ${c.month}` : c.name;
+        attendCourse.innerHTML += `<option value="${c.id}">${escapeHtml(name)}</option>`;
     });
     attendCourse.value = currentCourse;
 };
@@ -61,7 +62,7 @@ export const handleAddDate = async () => {
 
     enrolledStudentIds.forEach(studentId => {
         state.attendances.push({
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            id: generateId('at_'),
             courseId: courseId,
             date: date,
             studentId: studentId,
@@ -70,7 +71,17 @@ export const handleAddDate = async () => {
         });
     });
 
-    await storage.saveAttendances();
+    if (storage.useServer) {
+        for (const studentId of enrolledStudentIds) {
+            await api.post('attendances', {
+                id: generateId('at_'),
+                courseId, date, studentId, present: false,
+                createdAt: new Date().toISOString()
+            });
+        }
+    } else {
+        await storage.saveAttendances();
+    }
     renderAttendanceMatrix();
     alert(`Đã thêm ngày ${new Date(date).toLocaleDateString('vi-VN')} vào bảng điểm danh.`);
 };
@@ -169,7 +180,14 @@ export const deleteAttendanceDate = async date => {
     if (!confirm(`Xóa tất cả dữ liệu điểm danh ngày ${formatDate(date)}?`)) return;
 
     state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
-    await storage.saveAttendances();
+    if (storage.useServer) {
+        // Already filtered from state, no individual delete needed since we don't track IDs easily here
+        // Re-sync remaining attendances for this course via batch
+        const remaining = state.attendances.filter(a => a.courseId === courseId);
+        await api.post('attendances/batch', remaining);
+    } else {
+        await storage.saveAttendances();
+    }
     renderAttendanceMatrix();
 };
 
@@ -194,18 +212,27 @@ export const handleSaveAttendance = async () => {
 
     // Lưu attendance mới từ checkbox
     const checkboxes = matrixBody?.querySelectorAll('input[type="checkbox"]') || [];
+    const newRecords = [];
     checkboxes.forEach(cb => {
-        state.attendances.push({
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        const record = {
+            id: generateId('at_'),
             courseId: courseId,
             date: cb.dataset.date,
             studentId: cb.dataset.student,
             present: cb.checked,
             createdAt: new Date().toISOString()
-        });
+        };
+        state.attendances.push(record);
+        newRecords.push(record);
     });
 
-    await storage.saveAttendances();
+    if (storage.useServer) {
+        for (const record of newRecords) {
+            await api.post('attendances', record);
+        }
+    } else {
+        await storage.saveAttendances();
+    }
     renderAttendanceDropdowns();
     alert('Đã lưu điểm danh thành công!');
 };

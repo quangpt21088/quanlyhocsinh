@@ -35,6 +35,31 @@ export class StorageManager {
         localStorage.setItem('students', JSON.stringify(state.students));
     }
 
+    async addStudent(student) {
+        if (this.useServer) {
+            return api.post('students', student);
+        }
+        state.students.push(student);
+        localStorage.setItem('students', JSON.stringify(state.students));
+    }
+
+    async updateStudent(student) {
+        if (this.useServer) {
+            return api.put('students', student.id, student);
+        }
+        const idx = state.students.findIndex(s => s.id === student.id);
+        if (idx !== -1) state.students[idx] = student;
+        localStorage.setItem('students', JSON.stringify(state.students));
+    }
+
+    async removeStudent(id) {
+        if (this.useServer) {
+            return api.delete('students', id);
+        }
+        state.students = state.students.filter(s => s.id !== id);
+        localStorage.setItem('students', JSON.stringify(state.students));
+    }
+
     async getCourses() {
         if (this.useServer) {
             const data = await api.get('courses');
@@ -50,6 +75,31 @@ export class StorageManager {
         if (this.useServer) {
             return api.post('courses/batch', state.courses);
         }
+        localStorage.setItem('courses', JSON.stringify(state.courses));
+    }
+
+    async addCourse(course) {
+        if (this.useServer) {
+            return api.post('courses', course);
+        }
+        state.courses.push(course);
+        localStorage.setItem('courses', JSON.stringify(state.courses));
+    }
+
+    async updateCourse(course) {
+        if (this.useServer) {
+            return api.put('courses', course.id, course);
+        }
+        const idx = state.courses.findIndex(c => c.id === course.id);
+        if (idx !== -1) state.courses[idx] = course;
+        localStorage.setItem('courses', JSON.stringify(state.courses));
+    }
+
+    async removeCourse(id) {
+        if (this.useServer) {
+            return api.delete('courses', id);
+        }
+        state.courses = state.courses.filter(c => c.id !== id);
         localStorage.setItem('courses', JSON.stringify(state.courses));
     }
 
@@ -71,6 +121,31 @@ export class StorageManager {
         localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
     }
 
+    async addEnrollment(enrollment) {
+        if (this.useServer) {
+            return api.post('enrollments', enrollment);
+        }
+        state.enrollments.push(enrollment);
+        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+    }
+
+    async updateEnrollment(enrollment) {
+        if (this.useServer) {
+            return api.put('enrollments', enrollment.id, enrollment);
+        }
+        const idx = state.enrollments.findIndex(e => e.id === enrollment.id);
+        if (idx !== -1) state.enrollments[idx] = enrollment;
+        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+    }
+
+    async removeEnrollment(id) {
+        if (this.useServer) {
+            return api.delete('enrollments', id);
+        }
+        state.enrollments = state.enrollments.filter(e => e.id !== id);
+        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+    }
+
     async getAttendances() {
         if (this.useServer) {
             const data = await api.get('attendances');
@@ -89,6 +164,26 @@ export class StorageManager {
         localStorage.setItem('attendances', JSON.stringify(state.attendances));
     }
 
+    async addAttendance(attendance) {
+        if (this.useServer) {
+            return api.post('attendances', attendance);
+        }
+        state.attendances.push(attendance);
+        localStorage.setItem('attendances', JSON.stringify(state.attendances));
+    }
+
+    async removeAttendanceByCourseDate(courseId, date) {
+        if (this.useServer) {
+            // Delete individual records for this course+date
+            const toDelete = state.attendances.filter(a => a.courseId === courseId && a.date === date);
+            for (const a of toDelete) {
+                await api.delete('attendances', a.id);
+            }
+        }
+        state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
+        localStorage.setItem('attendances', JSON.stringify(state.attendances));
+    }
+
     async getPaymentRecords() {
         if (this.useServer) {
             const data = await api.get('payments');
@@ -104,6 +199,31 @@ export class StorageManager {
         if (this.useServer) {
             return api.post('payments/batch', state.paymentRecords);
         }
+        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+    }
+
+    async addPaymentRecord(record) {
+        if (this.useServer) {
+            return api.post('payments', record);
+        }
+        state.paymentRecords.push(record);
+        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+    }
+
+    async updatePaymentRecord(record) {
+        if (this.useServer) {
+            return api.put('payments', record.id, record);
+        }
+        const idx = state.paymentRecords.findIndex(r => r.id === record.id);
+        if (idx !== -1) state.paymentRecords[idx] = record;
+        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+    }
+
+    async removePaymentRecord(id) {
+        if (this.useServer) {
+            return api.delete('payments', id);
+        }
+        state.paymentRecords = state.paymentRecords.filter(r => r.id !== id);
         localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
     }
 

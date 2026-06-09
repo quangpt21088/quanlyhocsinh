@@ -180,9 +180,15 @@ export const handlePasswordChange = async e => {
         }
     }
 
-    // Update locally (localStorage mode or sync after server success)
+    // Update locally
     admin.passwordHash = await hashPassword(newPwd);
-    await storage.saveAdmins();
+    if (storage.useServer) {
+        // Server already updated via API above; update local state.admins to match
+        const idx = state.admins.findIndex(a => a.id === changePasswordAdminId);
+        if (idx !== -1) state.admins[idx].passwordHash = admin.passwordHash;
+    } else {
+        await storage.saveAdmins();
+    }
 
     if (admin.id === state.currentAdmin.id) {
         state.currentAdmin = admin;

@@ -155,11 +155,18 @@ export const mergeStudents = async () => {
     // Delete the from student
     state.students = state.students.filter(s => s.id !== fromId);
 
-    // Save all
-    await storage.saveEnrollments();
-    await storage.saveAttendances();
-    await storage.savePaymentRecords();
-    await storage.saveStudents();
+    if (storage.useServer) {
+        // Delete on server (cascades to enrollments/attendances/payment_records)
+        await api.delete('students', fromId);
+    }
+
+    // Save locally
+    if (!storage.useServer) {
+        await storage.saveEnrollments();
+        await storage.saveAttendances();
+        await storage.savePaymentRecords();
+        await storage.saveStudents();
+    }
 
     // Clear form
     document.getElementById('mergeFromSearch').value = '';

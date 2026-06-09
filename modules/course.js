@@ -52,16 +52,26 @@ export const handleCourseSubmit = async e => {
         if (index !== -1) {
             state.courses[index] = { ...state.courses[index], name, instructor, month, fee, maxStudents, status };
         }
+        if (storage.useServer) {
+            await api.put('courses', state.editingCourseId, { name, instructor, month, fee, maxStudents, status });
+        }
         cancelCourseEdit();
     } else {
-        state.courses.push({
-            id: Date.now().toString(),
+        const newId = 'co_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        const newCourse = {
+            id: newId,
             name, instructor, month, fee, maxStudents, status,
             createdAt: new Date().toISOString()
-        });
+        };
+        state.courses.push(newCourse);
+        if (storage.useServer) {
+            await api.post('courses', newCourse);
+        }
     }
 
-    await storage.saveCourses();
+    if (!storage.useServer) {
+        await storage.saveCourses();
+    }
     const courseForm = document.getElementById('courseForm');
     if (courseForm) courseForm.reset();
     await doRenderAll();
@@ -74,17 +84,23 @@ export const deleteCourse = async id => {
     if (enrollCount > 0 && !confirm(`Khóa học này có ${enrollCount} học viên. Xóa khóa học sẽ xóa tất cả ghi danh và điểm danh. Tiếp tục?`)) return;
     if (enrollCount === 0 && !confirm('Xóa khóa học này?')) return;
     
+    // Delete on server first (cascades to enrollments/attendances/payment_records)
+    if (storage.useServer) {
+        await api.delete('courses', id);
+    }
+
+    // Remove from local state
     state.enrollments = state.enrollments.filter(e => e.courseId !== id);
-    await storage.saveEnrollments();
-    
     state.attendances = state.attendances.filter(a => a.courseId !== id);
-    await storage.saveAttendances();
-    
     state.paymentRecords = state.paymentRecords.filter(r => r.courseId !== id);
-    await storage.savePaymentRecords();
-    
     state.courses = state.courses.filter(c => c.id !== id);
-    await storage.saveCourses();
+
+    if (!storage.useServer) {
+        await storage.saveCourses();
+        await storage.saveEnrollments();
+        await storage.saveAttendances();
+        await storage.savePaymentRecords();
+    }
     await doRenderAll();
 };
 
@@ -253,7 +269,11 @@ export const handleQuickAddCourse = async () => {
     };
 
     state.courses.push(newCourse);
-    await storage.saveCourses();
+    if (storage.useServer) {
+        await api.post('courses', newCourse);
+    } else {
+        await storage.saveCourses();
+    }
 
     const quickAddMonth = document.getElementById('quickAddMonth');
     const quickAddSourceCourse = document.getElementById('quickAddSourceCourse');
@@ -326,7 +346,11 @@ export const updateQuickManageStatus = async courseId => {
     if (!course) return;
 
     course.status = newStatus;
-    await storage.saveCourses();
+    if (storage.useServer) {
+        await api.put('courses', courseId, { name: course.name, instructor: course.instructor, month: course.month, fee: course.fee, maxStudents: course.maxStudents, status: newStatus });
+    } else {
+        await storage.saveCourses();
+    }
     await doRenderAll();
     alert(`Đã cập nhật trạng thái "${formatCourseName(course)}" thành "${newStatus}".`);
 };

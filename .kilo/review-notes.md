@@ -512,3 +512,99 @@ excel-import.js ← state.js, storage.js, utils.js
 - **Nguyên nhân**: `if (!date && attendDate)` — nếu `attendDate` element không tồn tại (null), điều kiện luôn `false` → validation bị bypass.
 - **Hậu quả**: Có thể thêm attendance không có ngày nếu element bị xóa khỏi HTML.
 - **Cách sửa**: Đổi `if (!date && attendDate)` → `if (!date)`.
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-09 Round 2) — ĐÃ SỬA HẾT
+
+### Tổng số lỗi mới: 5 (tất cả đã sửa ✅)
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 84 | attendance.js — `handleAddDate` và `handleSaveAttendance` dùng `Date.now()` tạo ID → duplicate IDs khi push nhiều records cùng tick | 🔴 HIGH | ✅ |
+| 85 | attendance.js — `renderAttendanceDropdowns` không escape `c.month` trong string concatenation | 🟡 MEDIUM | ✅ |
+| 86 | payment.js — `renderPaymentDropdowns` không escape `formatCourseName(c)` → XSS via course name | 🟡 MEDIUM | ✅ |
+| 87 | payment.js — `handlePaymentConfirm` new record thiếu `createdAt` field | 🟡 MEDIUM | ✅ |
+| 88 | payment.js — `handleSavePaymentStatuses` new record thiếu `createdAt` field | 🟡 MEDIUM | ✅ |
+
+### Mô tả chi tiết
+
+#### #84 — attendance.js duplicate IDs (🔴 HIGH)
+- **File**: `modules/attendance.js:65` (handleAddDate) và `modules/attendance.js:200` (handleSaveAttendance)
+- **Nguyên nhân**: Cả 2 hàm dùng `Date.now().toString() + Math.random().toString(36).substr(2, 5)` để tạo ID. Khi push nhiều records trong cùng một event loop tick, `Date.now()` trả về cùng một giá trị → ID trùng nhau.
+- **Hậu quả**: Duplicate attendance record IDs → data corruption khi save, server sync tạo duplicates, không thể update/delete chính xác từng record.
+- **Cách sửa**: Import `generateId` từ `utils.js` và dùng `generateId('at_')` thay cho inline ID generation.
+
+#### #85 — renderAttendanceDropdowns không escape month (🟡 MEDIUM)
+- **File**: `modules/attendance.js:16`
+- **Nguyên nhân**: `${escapeHtml(c.name)}${c.month ? ' - Tháng ' + c.month : ''}` — `c.month` được concatenate trực tiếp mà không qua `escapeHtml()`.
+- **Hậu quả**: Thấp — `c.month` thường là số, nhưng không nhất quán với các renderers khác và không an toàn nếu month chứa ký tự đặc biệt.
+- **Cách sửa**: Tách name thành biến riêng, dùng `escapeHtml(name)` cho toàn bộ string.
+
+#### #86 — renderPaymentDropdowns XSS (🟡 MEDIUM)
+- **File**: `modules/payment.js:19`
+- **Nguyên nhân**: `formatCourseName(c)` được chèn trực tiếp vào `innerHTML` mà không qua `escapeHtml()`. Nếu tên khóa học chứa `<`, `>`, `&`, `"`, nó sẽ phá HTML hoặc tạo XSS.
+- **Hậu quả**: Admin tạo khóa học tên `<script>alert(1)</script>` → script thực thi khi render payment dropdowns.
+- **Cách sửa**: Wrap với `escapeHtml(formatCourseName(c))`.
+
+#### #87 — handlePaymentConfirm thiếu createdAt (🟡 MEDIUM)
+- **File**: `modules/payment.js:298-306`
+- **Nguyên nhân**: New payment record object có `id`, `studentId`, `courseId`, `month`, `status`, `method`, `updatedAt` — nhưng **không có `createdAt`**.
+- **Hậu quả**: `formatDate(createdAt)` hiển thị "-" vì `createdAt` là `undefined`. Server có thể reject records thiếu `createdAt`.
+- **Cách sửa**: Thêm `createdAt: existingIndex !== -1 ? state.paymentRecords[existingIndex].createdAt : now`.
+
+#### #88 — handleSavePaymentStatuses thiếu createdAt (🟡 MEDIUM)
+- **File**: `modules/payment.js:346-354`
+- **Nguyên nhân**: Tương tự #87 — new record push thiếu `createdAt` field.
+- **Hậu quả**: Tương tự #87.
+- **Cách sửa**: Thêm `createdAt: now` vào new record object.
+
+---
+
+## 🐛 LỖI NGHIÊM TRỌNG: DỮ LIỆU KHÔNG LƯU TRÊN RAILWAY (Review 2026-06-09)
+
+### Vấn đề: Dữ liệu mất sau khi F5 trên Railway
+
+**Nguyên nhân gốc:**
+
+1. **Backend batch endpoints chỉ update 1-2 fields khi conflict:**
+   - `students/batch`: `ON CONFLICT (id) DO UPDATE SET name=$2` — chỉ update `name`, bỏ qua `phone`, `email`, `status`, `dob`, `gender`, `address`, `discount_type`, `discount_value`
+   - `courses/batch`: `ON CONFLICT (id) DO UPDATE SET name=$2` — chỉ update `name`, bỏ qua `instructor`, `month`, `fee`, `max_students`, `status`
+   - `enrollments/batch`: `ON CONFLICT (id) DO UPDATE SET student_id=$2` — chỉ update `student_id`
+   - `attendances/batch`: `ON CONFLICT (id) DO UPDATE SET present=$5` — chỉ update `present`
+   - `payments/batch`: `ON CONFLICT (id) DO UPDATE SET status=$5` — chỉ update `status`
+
+2. **Frontend dùng batch save cho mọi thao tác CRUD:** Mỗi khi thêm/sửa/xóa, toàn bộ state array được gửi lên batch endpoint. Vì batch chỉ update 1-2 field, hầu hết thay đổi bị mất.
+
+**Hậu quả:** Khi admin thêm/sửa dữ liệu trên Railway (có server), dữ liệu ghi vào state nhưng không sync đầy đủ lên DB. Khi F5, `renderAll` tải data từ server → data cũ quay lại, mọi thay đổi bị mất.
+
+**Cách sửa đã áp dụng:**
+
+1. **Backend** — Sửa tất cả batch endpoints để update ĐẦY ĐỦ fields khi `ON CONFLICT`:
+   - `students/batch`: giờ update `name, phone, email, dob, gender, address, status, discount_type, discount_value, updated_at`
+   - `courses/batch`: giờ update `name, instructor, month, fee, max_students, status, updated_at`
+   - `enrollments/batch`: giờ update `student_id, course_id, date, discount_type, discount_value`
+   - `attendances/batch`: giờ update `course_id, student_id, date, present`
+   - `payments/batch`: giờ update `student_id, course_id, month, status, method, updated_at`
+
+2. **Frontend** — Chuyển từ batch save sang individual API calls cho mọi CRUD:
+   - `student.js`: Đã dùng individual API (giữ nguyên)
+   - `course.js`: Thêm `api.post('courses')`, `api.put('courses')`, `api.delete('courses')` cho create/edit/delete/quickAdd/status
+   - `enrollment.js`: Thêm `api.post('enrollments')`, `api.put('enrollments')`, `api.delete('enrollments')` cho create/edit/delete/copy
+   - `attendance.js`: Thêm `api.post('attendances')` cho addDate và saveAttendance
+   - `payment.js`: Thêm `api.post('payments')`, `api.put('payments')` cho paymentConfirm và savePaymentStatuses
+   - `admin.js`: `deleteAdmin` và `handleAdminSubmit` đã dùng individual API (giữ nguyên), thêm `else` guard cho `saveAdmins`
+   - `auth.js`: `handlePasswordChange` — không gọi `saveAdmins()` ở server mode (đã update qua API)
+   - `merge-students.js`: Chỉ gọi `api.delete('students')` ở server mode, không batch save
+   - `storage.js`: Thêm methods `addStudent`, `updateStudent`, `removeStudent`, `addCourse`, `updateCourse`, `removeCourse`, `addEnrollment`, `updateEnrollment`, `removeEnrollment`, `addAttendance`, `removeAttendanceByCourseDate`, `addPaymentRecord`, `updatePaymentRecord`, `removePaymentRecord` — individual CRUD operations
+
+### Files đã sửa:
+- `backend/routes/index.js` — 5 batch endpoints
+- `modules/storage.js` — Thêm individual CRUD methods
+- `modules/course.js` — 4 functions
+- `modules/enrollment.js` — 4 functions
+- `modules/attendance.js` — 2 functions
+- `modules/payment.js` — 2 functions
+- `modules/admin.js` — 2 functions
+- `modules/auth.js` — 1 function
+- `modules/merge-students.js` — 1 function

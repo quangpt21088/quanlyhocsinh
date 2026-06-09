@@ -123,7 +123,9 @@ export const deleteAdmin = async id => {
     }
 
     state.admins = state.admins.filter(a => a.id !== id);
-    await storage.saveAdmins();
+    if (!storage.useServer) {
+        await storage.saveAdmins();
+    }
     renderAdminTable();
 };
 
@@ -182,8 +184,9 @@ export const handleAdminSubmit = async e => {
             } catch (err) {
                 alert('Lỗi cập nhật admin trên server.'); return;
             }
+        } else {
+            await storage.saveAdmins();
         }
-        await storage.saveAdmins();
         renderAdminTable();
         alert('Cập nhật quản trị viên thành công!');
     } else {
@@ -221,6 +224,7 @@ export const handleAdminSubmit = async e => {
 
         // localStorage mode
         state.admins.push({ id: newId, username, name, role, permissions, passwordHash, createdAt: new Date().toISOString() });
+        await storage.saveAdmins();
         cancelAdminEdit();
         renderAdminTable();
         alert('Thêm quản trị viên thành công!');
