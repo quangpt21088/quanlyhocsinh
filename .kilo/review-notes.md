@@ -608,3 +608,38 @@ excel-import.js ← state.js, storage.js, utils.js
 - `modules/admin.js` — 2 functions
 - `modules/auth.js` — 1 function
 - `modules/merge-students.js` — 1 function
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-10) — ĐÃ SỬA
+
+### Tổng số lỗi mới: 1
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 89 | auth.js — `handlePasswordChange` không auto-logout sau khi đổi mật khẩu | 🔴 HIGH | ✅ |
+
+### Mô tả chi tiết
+
+#### #89 — handlePasswordChange không logout sau khi đổi mật khẩu (🔴 HIGH)
+- **File**: `modules/auth.js:149-200`
+- **Nguyên nhân**:
+  1. Sau khi đổi mật khẩu thành công, function chỉ gọi `alert('Đổi mật khẩu thành công!')` và `closeChangePassword()` — **không** logout và không quay về login form
+  2. Khi admin đổi mật khẩu của chính mình, password hash trên DB đã thay đổi nhưng token vẫn cũ → các API calls tiếp theo bị 401 → app rơi vào trạng thái không ổn định (F5 loop hoặc lỗi không rõ ràng)
+  3. Function cũ gọi `storage.saveAdmins()` ở cả server mode (dư thừa vì đã gọi API riêng)
+- **Hậu quả**:
+  - Đổi mật khẩu xong, user vẫn ở trong app nhưng mọi thao tác API đều fail (401)
+  - User không biết phải logout/login lại thủ công
+  - Trải nghiệm dùng chức năng đổi mật khẩu rất kém
+- **Cách sửa**:
+  1. Thêm biến `isSelfChange` để phân biệt đổi MK của chính mình hay admin khác
+  2. Nếu `isSelfChange`: sau đổi MK thành công → clear token, session, reset state → gọi `showLogin()` để quay về form đăng nhập
+  3. Nếu đổi MK admin khác: chỉ cần alert thành công
+  4. Server mode: chỉ gọi `api.post('admins/:id/change-purpose')`, không gọi `saveAdmins()`
+
+### Files đã sửa:
+- `modules/auth.js` — Viết lại `handlePasswordChange` hoàn toàn
+  - Thêm check `isSelfChange = admin.id === state.currentAdmin?.id`
+  → Self change: clear `token`, `currentAdmin`, gọi `showLogin()`
+  → Other admin change: alert thành công bình thường
+  - Server mode: chỉ dùng individual API, không gọi `saveAdmins()`
