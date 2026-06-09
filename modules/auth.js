@@ -63,12 +63,13 @@ export const handleLogin = async e => {
             if (admin) {
                 const hashedInput = await hashPassword(password);
                 if (admin.passwordHash === hashedInput) {
-                    state.currentAdmin = admin;
-                    sessionStorage.setItem('currentAdmin', JSON.stringify(admin));
-                    showApp();
-                    await doRenderAll();
-                    return;
-                }
+                     state.currentAdmin = admin;
+                     storage.useServer = false;
+                     sessionStorage.setItem('currentAdmin', JSON.stringify(admin));
+                     showApp();
+                     await doRenderAll();
+                     return;
+                 }
             }
             const loginErrorEl = document.getElementById('loginError');
             if (loginErrorEl) loginErrorEl.textContent = 'Sai tên đăng nhập hoặc mật khẩu.';
@@ -84,6 +85,7 @@ export const handleLogout = () => {
     localStorage.removeItem('token');
     sessionStorage.removeItem('currentAdmin');
     state.currentAdmin = null;
+    storage.useServer = false;
     switchTab('students');
     showLogin();
 };

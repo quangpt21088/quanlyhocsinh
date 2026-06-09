@@ -138,7 +138,7 @@ export const clearCourseFilterInputs = () => {
     const courseFilterInstructor = document.getElementById('courseFilterInstructor');
     
     if (courseFilterMonth) courseFilterMonth.value = '';
-    if (courseFilterStatus) courseFilterStatus.value = 'Đang mở';
+    if (courseFilterStatus) courseFilterStatus.value = '';
     if (courseFilterInstructor) courseFilterInstructor.value = '';
     renderCourseTable();
 };

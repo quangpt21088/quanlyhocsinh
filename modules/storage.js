@@ -1,6 +1,5 @@
 // modules/storage.js - Hybrid storage manager
 import { state } from './state.js';
-import { api } from './api.js';
 
 export class StorageManager {
     constructor() {
@@ -9,6 +8,8 @@ export class StorageManager {
 
     async init() {
         try {
+            // Dynamically import api to avoid circular dependency (api -> storage -> api)
+            const { api } = await import('./api.js');
             const response = await api.get('ping');
             this.useServer = !!response;
         } catch {

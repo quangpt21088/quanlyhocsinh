@@ -442,3 +442,73 @@ admin.js ← state.js, auth.js, storage.js, utils.js
 render-all.js ← state.js, student.js, course.js, enrollment.js, attendance.js, payment.js, report.js, admin.js
 merge-students.js ← state.js, auth.js, storage.js, utils.js
 excel-import.js ← state.js, storage.js, utils.js
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-09) — ĐÃ SỬA HẾT
+
+### Tổng số lỗi mới: 7 (tất cả đã sửa ✅, 1 false positive)
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 77 | excel-import.js — Duplicate dead code block (copy-paste error) | 🟡 MEDIUM | ✅ |
+| 78 | storage.js/api.js/auth.js — `useServer` state không reset khi logout/401 | 🔴 HIGH | ✅ |
+| 79 | auth.js — `useServer` không set false khi localStorage fallback login | 🔴 HIGH | ✅ |
+| 80 | index.html + course.js — Course clear filter không reset về "Tất Cả" | 🟢 LOW | ✅ |
+| 81 | payment.js — Payment record mất `id` khi update/create | 🔴 HIGH | ✅ |
+| 82 | routes/index.js — DELETE /courses/:id thiếu permission check | 🔴 CRITICAL | ✅ False positive — đã có check |
+| 83 | attendance.js — `handleAddDate` date validation bypass khi element null | 🟡 MEDIUM | ✅ |
+
+### Mô tả chi tiết
+
+#### #77 — excel-import.js duplicate dead code (🟡 MEDIUM)
+- **File**: `modules/excel-import.js:931-941` (trước khi sửa)
+- **Nguyên nhân**: Block code reset (msg, parsedRecords, previewSection, fileInput, fileName, renderAll) bị copy-paste duplicate sau closing `}` của `if (importAllBtn)`.
+- **Hậu quả**: Dead code, không crash nhưng tạo confusion.
+- **Cách sửa**: Xóa 12 dòng duplicate.
+
+#### #78 — useServer state không reset khi logout/401 (🔴 HIGH)
+- **File**: `modules/storage.js:7`, `modules/auth.js:83-89`, `modules/api.js:37-56`
+- **Nguyên nhân**: `storage.useServer` set `true` lúc `init()` nhưng không bao giờ reset. Sau logout hoặc 401, API calls tiếp tục gặp 401 → `handleAuthError` gọi `showLogin()` nhưng state không consistent.
+- **Hậu quả**: App rơi vào trạng thái không ổn định sau logout/token expired.
+- **Cách sửa**:
+  1. `auth.js:handleLogout()` — thêm `storage.useServer = false`
+  2. `api.js:handleAuthError()` — thêm `storage.useServer = false` khi 401
+  3. `storage.js:init()` — dùng dynamic `import('./api.js')` để tránh circular dependency
+
+#### #79 — useServer không set false khi localStorage fallback login (🔴 HIGH)
+- **File**: `modules/auth.js:66`
+- **Nguyên nhân**: Server login set token + useServer=true, nhưng localStorage fallback chỉ set `state.currentAdmin` — không set `storage.useServer = false`. Nếu server ping thành công trước đó, `useServer` vẫn `true`.
+- **Hậu quả**: Login offline nhưng API calls vẫn cố gắng hit server → 401.
+- **Cách sửa**: Thêm `storage.useServer = false` trong nhánh localStorage fallback login.
+
+#### #80 — Course clear filter không reset về "Tất Cả" (🟢 LOW)
+- **File**: `index.html:528`, `modules/course.js:141`
+- **Nguyên nhân**: `index.html` đặt `selected` trên `<option value="Đang mở">`, và `clearCourseFilterInputs()` reset về `'Đang mở'` thay vì `''`.
+- **Hậu quả**: "Xóa Bộ Lọc" không thực sự xóa — vẫn filter theo "Đang mở".
+- **Cách sửa**: Bỏ `selected` khỏi option trong HTML; đổi reset value từ `'Đang mở'` → `''`.
+
+#### #81 — Payment record mất `id` khi update/create (🔴 HIGH)
+- **File**: `modules/payment.js:298-311` và `modules/payment.js:345-352`
+- **Nguyên nhân**:
+  - `handlePaymentConfirm`: `record` object thiếu `id` field → khi replace existing record, `id` bị mất.
+  - `handleSavePaymentStatuses`: new record push thiếu `id` field.
+- **Hậu quả**: Payment records không có `id` → không thể update trên server, batch sync tạo duplicates.
+- **Cách sửa**: Thêm `generateId` import + `id` field vả cả 2 locations:
+  ```js
+  // handlePaymentConfirm:
+  id: existingIndex !== -1 ? state.paymentRecords[existingIndex].id : generateId('pay_'),
+  // handleSavePaymentStatuses:
+  id: generateId('pay_'),
+  ```
+
+#### #82 — DELETE /courses/:id thiếu permission check (🔴 CRITICAL → FALSE POSITIVE)
+- **File**: `backend/routes/index.js:31`
+- **Verification**: Route ĐÃ có `checkMiddleware('courses', 'delete')`. Bug report sai.
+- **Kết luận**: Không cần sửa.
+
+#### #83 — handleAddDate date validation bypass (🟡 MEDIUM)
+- **File**: `modules/attendance.js:39-41`
+- **Nguyên nhân**: `if (!date && attendDate)` — nếu `attendDate` element không tồn tại (null), điều kiện luôn `false` → validation bị bypass.
+- **Hậu quả**: Có thể thêm attendance không có ngày nếu element bị xóa khỏi HTML.
+- **Cách sửa**: Đổi `if (!date && attendDate)` → `if (!date)`.

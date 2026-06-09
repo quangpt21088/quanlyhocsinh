@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { storage } from './storage.js';
 const API_BASE = window.location.origin + '/api';
 
 export class ApiClient {
@@ -45,9 +46,10 @@ export class ApiClient {
             return;
         }
         // Token exists but server returned 401 — token is invalid/expired.
-        // Clear session and show login screen (avoids F5 loop).
+        // Clear session, fall back to localStorage mode, and show login screen.
         localStorage.removeItem('token');
         sessionStorage.removeItem('currentAdmin');
+        storage.useServer = false;
         if (state.currentAdmin) {
             state.currentAdmin = null;
             // Avoid circular dependency: call showLogin via window

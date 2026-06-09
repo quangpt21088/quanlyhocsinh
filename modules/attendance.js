@@ -36,7 +36,7 @@ export const handleAddDate = async () => {
         alert('Vui lòng chọn khóa học.');
         return;
     }
-    if (!date && attendDate) {
+    if (!date) {
         alert('Vui lòng chọn ngày.');
         return;
     }

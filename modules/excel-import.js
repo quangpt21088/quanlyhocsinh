@@ -928,18 +928,6 @@ export const initCourseStudentImport = () => {
             if (typeof window.renderAll === 'function') await window.renderAll();
         });
     }
-                msg += `\n\nCảnh báo:\n` + errors.slice(0, 5).join('\n') + (errors.length > 5 ? `\n...và ${errors.length - 5} cảnh báo khác` : '');
-            }
-            alert(msg);
-
-            // Reset
-            parsedRecords = [];
-            if (previewSection) previewSection.style.display = 'none';
-            if (fileInput) fileInput.value = '';
-            if (fileName) fileName.textContent = 'Chưa chọn file';
-            if (typeof window.renderAll === 'function') await window.renderAll();
-        });
-    }
 
     if (cancelBtn) {
         cancelBtn.addEventListener('click', () => {

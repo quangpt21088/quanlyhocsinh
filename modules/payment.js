@@ -2,7 +2,7 @@
 import { state } from './state.js';
 import { checkPermission } from './auth.js';
 import { storage } from './storage.js';
-import { formatCurrency, formatDate, getStatusClass, formatCourseName, getCourseAttendanceDates, escapeHtml } from './utils.js';
+import { formatCurrency, formatDate, getStatusClass, formatCourseName, getCourseAttendanceDates, escapeHtml, generateId } from './utils.js';
 
 export const renderPaymentDropdowns = selectedMonth => {
     const paymentCourseSelect = document.getElementById('paymentCourseSelect');
@@ -296,6 +296,7 @@ export const handlePaymentConfirm = async () => {
     );
 
     const record = {
+        id: existingIndex !== -1 ? state.paymentRecords[existingIndex].id : generateId('pay_'),
         studentId: state.paymentSelectedStudentId,
         courseId: state.paymentSelectedCourseId,
         month: state.paymentSelectedMonth,
@@ -343,6 +344,7 @@ export const handleSavePaymentStatuses = async () => {
         } else {
             if (newStatus !== 'Chưa thanh toán') {
                 state.paymentRecords.push({
+                    id: generateId('pay_'),
                     studentId: studentId,
                     courseId: state.paymentSelectedCourseId,
                     month: state.paymentSelectedMonth,
