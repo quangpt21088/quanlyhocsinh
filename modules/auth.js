@@ -166,8 +166,9 @@ export const handlePasswordChange = async e => {
     const admin = state.admins.find(a => a.id === changePasswordAdminId);
     if (!admin) return;
 
+    const isSelfChange = admin.id === state.currentAdmin?.id;
+
     if (storage.useServer) {
-        // Use dedicated change-password API endpoint
         try {
             const result = await api.post(`admins/${changePasswordAdminId}/change-password`, { password: newPwd });
             if (!result || result.error) {
@@ -182,21 +183,24 @@ export const handlePasswordChange = async e => {
 
     // Update locally
     admin.passwordHash = await hashPassword(newPwd);
-    if (storage.useServer) {
-        // Server already updated via API above; update local state.admins to match
-        const idx = state.admins.findIndex(a => a.id === changePasswordAdminId);
-        if (idx !== -1) state.admins[idx].passwordHash = admin.passwordHash;
-    } else {
+    if (!storage.useServer) {
         await storage.saveAdmins();
     }
 
-    if (admin.id === state.currentAdmin.id) {
-        state.currentAdmin = admin;
-        sessionStorage.setItem('currentAdmin', JSON.stringify(admin));
-    }
-
     closeChangePassword();
-    alert('Đổi mật khẩu thành công!');
+
+    if (isSelfChange) {
+        // Password changed for currently logged-in admin → token is now invalid
+        // Clear session and return to login form
+        alert('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('currentAdmin');
+        state.currentAdmin = null;
+        storage.useServer = false;
+        showLogin();
+    } else {
+        alert('Đổi mật khẩu thành công!');
+    }
 };
 
 // Assign to window for onclick handlers
