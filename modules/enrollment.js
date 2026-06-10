@@ -28,7 +28,7 @@ export const renderEnrollmentDropdowns = () => {
         enrollCourse.innerHTML = '<option value="">Chọn khóa học</option>';
         const enrollMonth = document.getElementById('enrollMonth');
         const selectedMonth = enrollMonth?.value ? parseInt(enrollMonth.value) : null;
-        let enrollFilteredCourses = state.courses.filter(c => c.status === 'Đang mở');
+        let enrollFilteredCourses = state.courses.filter(c => c.status === 'Đang mở' || c.status === 'Chưa bắt đầu' || c.status === 'Đã đầy');
         if (selectedMonth) {
             enrollFilteredCourses = enrollFilteredCourses.filter(c => c.month === selectedMonth);
         }
@@ -64,7 +64,7 @@ export const handleStudentSearch = () => {
     if (!query) return;
 
     const matches = state.students.filter(s =>
-        s.status === 'Đang học' && s.name.toLowerCase().includes(query)
+        s.name.toLowerCase().includes(query)
     ).slice(0, 10);
 
     if (matches.length === 0 && enrollStudentDropdown) {
