@@ -55,7 +55,8 @@ async function init() {
             date TEXT NOT NULL,
             discount_type TEXT DEFAULT '',
             discount_value REAL DEFAULT 0,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ
         );
         CREATE TABLE IF NOT EXISTS attendances (
             id TEXT PRIMARY KEY,
@@ -63,8 +64,13 @@ async function init() {
             student_id TEXT NOT NULL,
             date TEXT NOT NULL,
             present INTEGER NOT NULL DEFAULT 0,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ
         );
+
+        // Migration: add updated_at to existing tables if missing
+        await client.query('ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
+        await client.query('ALTER TABLE attendances ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
         CREATE TABLE IF NOT EXISTS payment_records (
             id TEXT PRIMARY KEY,
             student_id TEXT NOT NULL,
