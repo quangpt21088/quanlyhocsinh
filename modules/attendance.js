@@ -180,12 +180,12 @@ export const deleteAttendanceDate = async date => {
     
     if (!confirm(`Xóa tất cả dữ liệu điểm danh ngày ${formatDate(date)}?`)) return;
 
+    const toDelete = state.attendances.filter(a => a.courseId === courseId && a.date === date);
     state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
     if (storage.useServer) {
-        // Already filtered from state, no individual delete needed since we don't track IDs easily here
-        // Re-sync remaining attendances for this course via batch
-        const remaining = state.attendances.filter(a => a.courseId === courseId);
-        await api.post('attendances/batch', remaining);
+        for (const a of toDelete) {
+            await api.delete('attendances', a.id);
+        }
     } else {
         await storage.saveAttendances();
     }

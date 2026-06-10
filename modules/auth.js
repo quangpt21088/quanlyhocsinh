@@ -52,6 +52,7 @@ export const handleLogin = async e => {
         localStorage.setItem('token', result.token);
         sessionStorage.setItem('currentAdmin', JSON.stringify(result.admin));
         state.currentAdmin = result.admin;
+        storage.useServer = true;
         showApp();
         await doRenderAll();
     } catch (err) {
@@ -85,6 +86,19 @@ export const handleLogout = () => {
     localStorage.removeItem('token');
     sessionStorage.removeItem('currentAdmin');
     state.currentAdmin = null;
+    state.students = [];
+    state.courses = [];
+    state.enrollments = [];
+    state.attendances = [];
+    state.paymentRecords = [];
+    state.admins = [];
+    state.editingStudentId = null;
+    state.editingCourseId = null;
+    state.editingEnrollmentId = null;
+    state.paymentSelectedCourseId = null;
+    state.paymentSelectedStudentId = null;
+    state.paymentSelectedMonth = null;
+    state.paymentSelectedStatus = null;
     storage.useServer = false;
     switchTab('students');
     showLogin();

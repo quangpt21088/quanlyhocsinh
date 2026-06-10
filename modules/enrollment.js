@@ -120,6 +120,11 @@ export const handleEnrollment = async e => {
         return;
     }
 
+    if (!date) {
+        alert('Vui lòng chọn ngày ghi danh.');
+        return;
+    }
+
     if (discType === 'percent' && discValue > 100) {
         alert('Phần trăm ưu đãi không được vượt quá 100%.');
         return;

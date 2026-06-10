@@ -159,10 +159,22 @@ export const mergeStudents = async () => {
     if (storage.useServer) {
         // Delete on server (cascades to enrollments/attendances/payment_records)
         await api.delete('students', fromId);
-    }
-
-    // Save locally
-    if (!storage.useServer) {
+        // Sync transferred records to server
+        for (const e of state.enrollments.filter(e => e.studentId === toId)) {
+            await api.put('enrollments', e.id, { studentId: e.studentId, courseId: e.courseId, date: e.date, discountType: e.discountType || '', discountValue: e.discountValue || 0 });
+        }
+        for (const a of state.attendances.filter(a => a.studentId === toId)) {
+            await api.put('attendances', a.id, { courseId: a.courseId, studentId: a.studentId, date: a.date, present: a.present });
+        }
+        for (const p of state.paymentRecords.filter(p => p.studentId === toId)) {
+            await api.put('payments', p.id, { studentId: p.studentId, courseId: p.courseId, month: p.month, status: p.status, method: p.method || '' });
+        }
+        // Sync the target student (in case it's new)
+        const toStudentData = state.students.find(s => s.id === toId);
+        if (toStudentData) {
+            await api.put('students', toId, { name: toStudentData.name, phone: toStudentData.phone, email: toStudentData.email, dob: toStudentData.dob, gender: toStudentData.gender, address: toStudentData.address, status: toStudentData.status });
+        }
+    } else {
         await storage.saveEnrollments();
         await storage.saveAttendances();
         await storage.savePaymentRecords();

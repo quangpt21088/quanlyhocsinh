@@ -20,7 +20,7 @@ export class StorageManager {
     async getStudents() {
         if (this.useServer) {
             const data = await api.get('students');
-            if (data) state.students = data;
+            if (Array.isArray(data)) state.students = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('students') || '[]');
@@ -63,7 +63,7 @@ export class StorageManager {
     async getCourses() {
         if (this.useServer) {
             const data = await api.get('courses');
-            if (data) state.courses = data;
+            if (Array.isArray(data)) state.courses = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('courses') || '[]');
@@ -106,7 +106,7 @@ export class StorageManager {
     async getEnrollments() {
         if (this.useServer) {
             const data = await api.get('enrollments');
-            if (data) state.enrollments = data;
+            if (Array.isArray(data)) state.enrollments = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('enrollments') || '[]');
@@ -149,7 +149,7 @@ export class StorageManager {
     async getAttendances() {
         if (this.useServer) {
             const data = await api.get('attendances');
-            if (data) state.attendances = data;
+            if (Array.isArray(data)) state.attendances = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('attendances') || '[]');
@@ -187,7 +187,7 @@ export class StorageManager {
     async getPaymentRecords() {
         if (this.useServer) {
             const data = await api.get('payments');
-            if (data) state.paymentRecords = data;
+            if (Array.isArray(data)) state.paymentRecords = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('paymentRecords') || '[]');
@@ -230,7 +230,7 @@ export class StorageManager {
     async getAdmins() {
         if (this.useServer) {
             const data = await api.get('admins');
-            if (data) state.admins = data;
+            if (Array.isArray(data)) state.admins = data;
             return data;
         }
         const data = JSON.parse(localStorage.getItem('admins') || '[]');

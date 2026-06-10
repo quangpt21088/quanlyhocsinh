@@ -18,6 +18,8 @@ export const renderAll = async () => {
             storage.getStudents(),
             storage.getCourses(),
             storage.getEnrollments(),
+            storage.getAttendances(),
+            storage.getPaymentRecords(),
             storage.getAdmins()
         ]);
     } catch (err) {

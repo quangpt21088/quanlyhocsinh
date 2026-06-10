@@ -55,22 +55,21 @@ export const handleStudentSubmit = async e => {
 export const deleteStudent = async id => {
     if (!checkPermission('students', 'delete')) return;
     const courseCount = getStudentCourseCount(id);
-    
+
     if (courseCount > 0 && !confirm(`Học viên này đang ghi danh ${courseCount} khóa học. Xóa học viên sẽ xóa tất cả ghi danh và điểm danh. Tiếp tục?`)) return;
     if (courseCount === 0 && !confirm('Xóa học viên này?')) return;
 
-    // Remove from state first
+    // Delete on server first (cascades to enrollments/attendances/payment_records)
+    if (storage.useServer) {
+        await api.delete('students', id);
+    }
+
+    // Remove from local state only after successful server operation
     state.enrollments = state.enrollments.filter(e => e.studentId !== id);
     state.attendances = state.attendances.filter(a => a.studentId !== id);
     state.paymentRecords = state.paymentRecords.filter(p => p.studentId !== id);
     state.students = state.students.filter(s => s.id !== id);
 
-    // Delete on server via API (cascades to enrollments/attendances/payment_records)
-    if (storage.useServer) {
-        await api.delete('students', id);
-    }
-
-    // Sync remaining data (batch save for offline mode, or extra safety for server mode)
     if (!storage.useServer) {
         await storage.saveStudents();
         await storage.saveEnrollments();
