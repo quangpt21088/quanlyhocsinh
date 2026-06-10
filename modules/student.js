@@ -29,19 +29,44 @@ export const handleStudentSubmit = async e => {
             state.students[index] = { ...state.students[index], name, phone, email, dob, gender, address, status };
         }
         if (storage.useServer) {
-            await api.put('students', state.editingStudentId, { name, phone, email, dob, gender, address, status });
+            try {
+                const result = await api.put('students', state.editingStudentId, { name, phone, email, dob, gender, address, status });
+                if (!result || result.error) {
+                    const errMsg = result?.error || 'Lỗi không xác định';
+                    alert('Lỗi cập nhật học viên: ' + errMsg);
+                    await doRenderAll();
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server khi cập nhật học viên. Vui lòng thử lại.');
+                console.error('Update student error:', err);
+                return;
+            }
         }
         cancelStudentEdit();
     } else {
         const newId = 'st_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        state.students.push({
+        const newStudent = {
             id: newId,
             name, phone, email, dob, gender, address, status,
             createdAt: new Date().toISOString()
-        });
+        };
         if (storage.useServer) {
-            await api.post('students', { id: newId, name, phone, email, dob, gender, address, status, createdAt: new Date().toISOString() });
+            try {
+                const result = await api.post('students', newStudent);
+                if (!result || result.error) {
+                    const errMsg = result?.error || 'Lỗi không xác định';
+                    alert('Lỗi tạo học viên: ' + errMsg);
+                    await doRenderAll();
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server khi tạo học viên. Vui lòng thử lại.');
+                console.error('Create student error:', err);
+                return;
+            }
         }
+        state.students.push(newStudent);
     }
 
     if (!storage.useServer) {
@@ -61,7 +86,17 @@ export const deleteStudent = async id => {
 
     // Delete on server first (cascades to enrollments/attendances/payment_records)
     if (storage.useServer) {
-        await api.delete('students', id);
+        try {
+            const result = await api.delete('students', id);
+            if (!result || result.error) {
+                alert('Lỗi xóa học viên: ' + (result?.error || 'Lỗi không xác định'));
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa học viên. Vui lòng thử lại.');
+            console.error('Delete student error:', err);
+            return;
+        }
     }
 
     // Remove from local state only after successful server operation
@@ -288,16 +323,27 @@ export const handleDeleteFilteredStudents = async () => {
 
     const idsToDelete = new Set(filtered.map(s => s.id));
 
+    if (storage.useServer) {
+        try {
+            for (const id of idsToDelete) {
+                const result = await api.delete('students', id);
+                if (!result || result.error) {
+                    alert('Lỗi xóa học viên: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa học viên. Vui lòng thử lại.');
+            console.error('Delete filtered students error:', err);
+            return;
+        }
+    }
+
     state.enrollments = state.enrollments.filter(e => !idsToDelete.has(e.studentId));
     state.attendances = state.attendances.filter(a => !idsToDelete.has(a.studentId));
     state.paymentRecords = state.paymentRecords.filter(p => !idsToDelete.has(p.studentId));
     state.students = state.students.filter(s => !idsToDelete.has(s.id));
-
-    if (storage.useServer) {
-        for (const id of idsToDelete) {
-            await api.delete('students', id);
-        }
-    }
 
     if (!storage.useServer) {
         await storage.saveStudents();

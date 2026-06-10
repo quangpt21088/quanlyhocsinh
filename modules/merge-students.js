@@ -138,6 +138,12 @@ export const mergeStudents = async () => {
 
     if (!confirm(confirmMsg)) return;
 
+    // Save original state for rollback on failure
+    const origEnrollments = [...state.enrollments];
+    const origAttendances = [...state.attendances];
+    const origPaymentRecords = [...state.paymentRecords];
+    const origStudents = [...state.students];
+
     // Transfer enrollments
     state.enrollments
         .filter(e => e.studentId === fromId)
@@ -157,22 +163,40 @@ export const mergeStudents = async () => {
     state.students = state.students.filter(s => s.id !== fromId);
 
     if (storage.useServer) {
-        // Delete on server (cascades to enrollments/attendances/payment_records)
-        await api.delete('students', fromId);
-        // Sync transferred records to server
-        for (const e of state.enrollments.filter(e => e.studentId === toId)) {
-            await api.put('enrollments', e.id, { studentId: e.studentId, courseId: e.courseId, date: e.date, discountType: e.discountType || '', discountValue: e.discountValue || 0 });
-        }
-        for (const a of state.attendances.filter(a => a.studentId === toId)) {
-            await api.put('attendances', a.id, { courseId: a.courseId, studentId: a.studentId, date: a.date, present: a.present });
-        }
-        for (const p of state.paymentRecords.filter(p => p.studentId === toId)) {
-            await api.put('payments', p.id, { studentId: p.studentId, courseId: p.courseId, month: p.month, status: p.status, method: p.method || '' });
-        }
-        // Sync the target student (in case it's new)
-        const toStudentData = state.students.find(s => s.id === toId);
-        if (toStudentData) {
-            await api.put('students', toId, { name: toStudentData.name, phone: toStudentData.phone, email: toStudentData.email, dob: toStudentData.dob, gender: toStudentData.gender, address: toStudentData.address, status: toStudentData.status });
+        try {
+            // Delete on server (cascades to enrollments/attendances/payment_records)
+            const delResult = await api.delete('students', fromId);
+            if (!delResult || delResult.error) {
+                throw new Error(delResult?.error || 'Lỗi xóa học viên trên server');
+            }
+            // Sync transferred records to server
+            for (const e of state.enrollments.filter(e => e.studentId === toId)) {
+                const result = await api.put('enrollments', e.id, { studentId: e.studentId, courseId: e.courseId, date: e.date, discountType: e.discountType || '', discountValue: e.discountValue || 0 });
+                if (!result || result.error) throw new Error(result?.error || 'Lỗi sync ghi danh');
+            }
+            for (const a of state.attendances.filter(a => a.studentId === toId)) {
+                const result = await api.put('attendances', a.id, { courseId: a.courseId, studentId: a.studentId, date: a.date, present: a.present });
+                if (!result || result.error) throw new Error(result?.error || 'Lỗi sync điểm danh');
+            }
+            for (const p of state.paymentRecords.filter(p => p.studentId === toId)) {
+                const result = await api.put('payments', p.id, { studentId: p.studentId, courseId: p.courseId, month: p.month, status: p.status, method: p.method || '' });
+                if (!result || result.error) throw new Error(result?.error || 'Lỗi sync thanh toán');
+            }
+            // Sync the target student (in case it's new)
+            const toStudentData = state.students.find(s => s.id === toId);
+            if (toStudentData) {
+                const result = await api.put('students', toId, { name: toStudentData.name, phone: toStudentData.phone, email: toStudentData.email, dob: toStudentData.dob, gender: toStudentData.gender, address: toStudentData.address, status: toStudentData.status });
+                if (!result || result.error) throw new Error(result?.error || 'Lỗi sync học viên');
+            }
+        } catch (err) {
+            // Rollback local state on any server failure
+            state.enrollments = origEnrollments;
+            state.attendances = origAttendances;
+            state.paymentRecords = origPaymentRecords;
+            state.students = origStudents;
+            alert('Lỗi gộp học viên trên server: ' + err.message + '. Đã hoàn tác thay đổi.');
+            console.error('Merge students error:', err);
+            return;
         }
     } else {
         await storage.saveEnrollments();

@@ -61,26 +61,31 @@ export const handleAddDate = async () => {
         .filter(e => e.courseId === courseId)
         .map(e => e.studentId);
 
-    enrolledStudentIds.forEach(studentId => {
-        state.attendances.push({
-            id: generateId('at_'),
-            courseId: courseId,
-            date: date,
-            studentId: studentId,
-            present: false,
-            createdAt: new Date().toISOString()
-        });
-    });
+    const newRecords = enrolledStudentIds.map(studentId => ({
+        id: generateId('at_'),
+        courseId, date, studentId, present: false,
+        createdAt: new Date().toISOString()
+    }));
 
     if (storage.useServer) {
-        for (const studentId of enrolledStudentIds) {
-            await api.post('attendances', {
-                id: generateId('at_'),
-                courseId, date, studentId, present: false,
-                createdAt: new Date().toISOString()
-            });
+        try {
+            for (const record of newRecords) {
+                const result = await api.post('attendances', record);
+                if (!result || result.error) {
+                    alert('Lỗi thêm điểm danh: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi thêm điểm danh. Vui lòng thử lại.');
+            console.error('Add attendance error:', err);
+            return;
         }
-    } else {
+    }
+
+    state.attendances.push(...newRecords);
+
+    if (!storage.useServer) {
         await storage.saveAttendances();
     }
     renderAttendanceMatrix();
@@ -181,12 +186,24 @@ export const deleteAttendanceDate = async date => {
     if (!confirm(`Xóa tất cả dữ liệu điểm danh ngày ${formatDate(date)}?`)) return;
 
     const toDelete = state.attendances.filter(a => a.courseId === courseId && a.date === date);
-    state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
     if (storage.useServer) {
-        for (const a of toDelete) {
-            await api.delete('attendances', a.id);
+        try {
+            for (const a of toDelete) {
+                const result = await api.delete('attendances', a.id);
+                if (!result || result.error) {
+                    alert('Lỗi xóa điểm danh: ' + (result?.error || 'Lỗi không xác định'));
+                    renderAttendanceMatrix();
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa điểm danh. Vui lòng thử lại.');
+            console.error('Delete attendance date error:', err);
+            return;
         }
-    } else {
+    }
+    state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
+    if (!storage.useServer) {
         await storage.saveAttendances();
     }
     renderAttendanceMatrix();
@@ -208,9 +225,6 @@ export const handleSaveAttendance = async () => {
         return;
     }
 
-    // Xóa attendance cũ
-    state.attendances = state.attendances.filter(a => a.courseId !== courseId);
-
     // Lưu attendance mới từ checkbox
     const checkboxes = matrixBody?.querySelectorAll('input[type="checkbox"]') || [];
     const newRecords = [];
@@ -223,15 +237,35 @@ export const handleSaveAttendance = async () => {
             present: cb.checked,
             createdAt: new Date().toISOString()
         };
-        state.attendances.push(record);
         newRecords.push(record);
     });
 
     if (storage.useServer) {
-        for (const record of newRecords) {
-            await api.post('attendances', record);
+        try {
+            // Delete old records for this course, then insert new ones
+            const oldRecords = state.attendances.filter(a => a.courseId === courseId);
+            for (const old of oldRecords) {
+                await api.delete('attendances', old.id);
+            }
+            for (const record of newRecords) {
+                const result = await api.post('attendances', record);
+                if (!result || result.error) {
+                    alert('Lỗi lưu điểm danh: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi lưu điểm danh. Vui lòng thử lại.');
+            console.error('Save attendance error:', err);
+            return;
         }
-    } else {
+    }
+
+    // Update local state only after successful server operation
+    state.attendances = state.attendances.filter(a => a.courseId !== courseId);
+    state.attendances.push(...newRecords);
+
+    if (!storage.useServer) {
         await storage.saveAttendances();
     }
     renderAttendanceDropdowns();

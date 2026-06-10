@@ -141,7 +141,18 @@ export const handleEnrollment = async e => {
             };
         }
         if (storage.useServer) {
-            await api.put('enrollments', state.editingEnrollmentId, { studentId, courseId, date, discountType: discType, discountValue: discValue });
+            try {
+                const result = await api.put('enrollments', state.editingEnrollmentId, { studentId, courseId, date, discountType: discType, discountValue: discValue });
+                if (!result || result.error) {
+                    alert('Lỗi cập nhật ghi danh: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server khi cập nhật ghi danh. Vui lòng thử lại.');
+                console.error('Update enrollment error:', err);
+                return;
+            }
         }
         cancelEnrollmentEdit();
         if (!storage.useServer) {
@@ -178,22 +189,35 @@ export const handleEnrollment = async e => {
         discountValue: discValue,
         createdAt: new Date().toISOString()
     };
-    state.enrollments.push(newEnrollment);
 
     if (storage.useServer) {
-        await api.post('enrollments', newEnrollment);
-    } else {
+        try {
+            const result = await api.post('enrollments', newEnrollment);
+            if (!result || result.error) {
+                alert('Lỗi ghi danh: ' + (result?.error || 'Lỗi không xác định'));
+                await doRenderAll();
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi ghi danh. Vui lòng thử lại.');
+            console.error('Create enrollment error:', err);
+            return;
+        }
+    }
+    state.enrollments.push(newEnrollment);
+
+    if (!storage.useServer) {
         await storage.saveEnrollments();
     }
     const enrollmentForm = document.getElementById('enrollmentForm');
     if (enrollmentForm) enrollmentForm.reset();
-    
+
     const discountValueEl = document.getElementById('discountValue');
     if (discountValueEl) discountValueEl.disabled = true;
-    
+
     const enrollDate = document.getElementById('enrollDate');
     if (enrollDate) enrollDate.valueAsDate = new Date();
-    
+
     await doRenderAll();
     alert('Ghi danh thành công!');
 };
@@ -201,11 +225,24 @@ export const handleEnrollment = async e => {
 export const removeEnrollment = async id => {
     if (!checkPermission('enrollment', 'delete')) return;
     if (!confirm('Xóa ghi danh này?')) return;
-    
-    state.enrollments = state.enrollments.filter(e => e.id !== id);
+
     if (storage.useServer) {
-        await api.delete('enrollments', id);
-    } else {
+        try {
+            const result = await api.delete('enrollments', id);
+            if (!result || result.error) {
+                alert('Lỗi xóa ghi danh: ' + (result?.error || 'Lỗi không xác định'));
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa ghi danh. Vui lòng thử lại.');
+            console.error('Remove enrollment error:', err);
+            return;
+        }
+    }
+
+    state.enrollments = state.enrollments.filter(e => e.id !== id);
+
+    if (!storage.useServer) {
         await storage.saveEnrollments();
     }
     await doRenderAll();
@@ -348,8 +385,19 @@ export const handleDeleteAllEnrollments = async () => {
     if (!confirm('Xác nhận lần 2: Xóa tất cả ' + state.enrollments.length + ' ghi danh?')) return;
     
     if (storage.useServer) {
-        for (const e of state.enrollments) {
-            await api.delete('enrollments', e.id);
+        try {
+            for (const e of state.enrollments) {
+                const result = await api.delete('enrollments', e.id);
+                if (!result || result.error) {
+                    alert('Lỗi xóa ghi danh: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa ghi danh. Vui lòng thử lại.');
+            console.error('Delete all enrollments error:', err);
+            return;
         }
     }
     state.enrollments = [];
@@ -492,12 +540,24 @@ export const handleCopyEnrollment = async () => {
     const confirmMsg = `Sao chép ${newEnrollments.length} học viên từ "${formatCourseName(fromCourse)}" sang "${formatCourseName(toCourse)}"?`;
     if (!confirm(confirmMsg)) return;
 
-    state.enrollments.push(...newEnrollments);
     if (storage.useServer) {
-        for (const e of newEnrollments) {
-            await api.post('enrollments', e);
+        try {
+            for (const e of newEnrollments) {
+                const result = await api.post('enrollments', e);
+                if (!result || result.error) {
+                    alert('Lỗi sao chép ghi danh: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi sao chép ghi danh. Vui lòng thử lại.');
+            console.error('Copy enrollment error:', err);
+            return;
         }
-    } else {
+    }
+    state.enrollments.push(...newEnrollments);
+    if (!storage.useServer) {
         await storage.saveEnrollments();
     }
     await doRenderAll();

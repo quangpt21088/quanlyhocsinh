@@ -307,16 +307,32 @@ export const handlePaymentConfirm = async () => {
         updatedAt: now
     };
 
+    if (storage.useServer) {
+        try {
+            if (existingIndex !== -1) {
+                const result = await api.put('payments', record.id, { studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method });
+                if (!result || result.error) {
+                    alert('Lỗi cập nhật thanh toán: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            } else {
+                const result = await api.post('payments', { id: record.id, studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method, createdAt: record.createdAt });
+                if (!result || result.error) {
+                    alert('Lỗi tạo thanh toán: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi cập nhật thanh toán. Vui lòng thử lại.');
+            console.error('Payment error:', err);
+            return;
+        }
+    }
+
     if (existingIndex !== -1) {
         state.paymentRecords[existingIndex] = record;
-        if (storage.useServer) {
-            await api.put('payments', record.id, { studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method });
-        }
     } else {
         state.paymentRecords.push(record);
-        if (storage.useServer) {
-            await api.post('payments', { id: record.id, studentId: record.studentId, courseId: record.courseId, month: record.month, status: record.status, method: record.method, createdAt: record.createdAt });
-        }
     }
 
     if (!storage.useServer) {
@@ -378,11 +394,25 @@ export const handleSavePaymentStatuses = async () => {
     });
 
     if (storage.useServer) {
-        for (const r of toUpdate) {
-            await api.put('payments', r.id, { studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method });
-        }
-        for (const r of toCreate) {
-            await api.post('payments', { id: r.id, studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method, createdAt: r.createdAt });
+        try {
+            for (const r of toUpdate) {
+                const result = await api.put('payments', r.id, { studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method });
+                if (!result || result.error) {
+                    alert('Lỗi cập nhật thanh toán: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            }
+            for (const r of toCreate) {
+                const result = await api.post('payments', { id: r.id, studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method, createdAt: r.createdAt });
+                if (!result || result.error) {
+                    alert('Lỗi tạo thanh toán: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi cập nhật thanh toán. Vui lòng thử lại.');
+            console.error('Save payment statuses error:', err);
+            return;
         }
     } else {
         await storage.savePaymentRecords();

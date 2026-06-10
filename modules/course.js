@@ -54,7 +54,18 @@ export const handleCourseSubmit = async e => {
             state.courses[index] = { ...state.courses[index], name, instructor, month, fee, maxStudents, status };
         }
         if (storage.useServer) {
-            await api.put('courses', state.editingCourseId, { name, instructor, month, fee, maxStudents, status });
+            try {
+                const result = await api.put('courses', state.editingCourseId, { name, instructor, month, fee, maxStudents, status });
+                if (!result || result.error) {
+                    alert('Lỗi cập nhật khóa học: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server khi cập nhật khóa học. Vui lòng thử lại.');
+                console.error('Update course error:', err);
+                return;
+            }
         }
         cancelCourseEdit();
     } else {
@@ -64,10 +75,21 @@ export const handleCourseSubmit = async e => {
             name, instructor, month, fee, maxStudents, status,
             createdAt: new Date().toISOString()
         };
-        state.courses.push(newCourse);
         if (storage.useServer) {
-            await api.post('courses', newCourse);
+            try {
+                const result = await api.post('courses', newCourse);
+                if (!result || result.error) {
+                    alert('Lỗi tạo khóa học: ' + (result?.error || 'Lỗi không xác định'));
+                    await doRenderAll();
+                    return;
+                }
+            } catch (err) {
+                alert('Lỗi kết nối server khi tạo khóa học. Vui lòng thử lại.');
+                console.error('Create course error:', err);
+                return;
+            }
         }
+        state.courses.push(newCourse);
     }
 
     if (!storage.useServer) {
@@ -87,7 +109,17 @@ export const deleteCourse = async id => {
     
     // Delete on server first (cascades to enrollments/attendances/payment_records)
     if (storage.useServer) {
-        await api.delete('courses', id);
+        try {
+            const result = await api.delete('courses', id);
+            if (!result || result.error) {
+                alert('Lỗi xóa khóa học: ' + (result?.error || 'Lỗi không xác định'));
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi xóa khóa học. Vui lòng thử lại.');
+            console.error('Delete course error:', err);
+            return;
+        }
     }
 
     // Remove from local state
@@ -269,10 +301,23 @@ export const handleQuickAddCourse = async () => {
         createdAt: new Date().toISOString()
     };
 
-    state.courses.push(newCourse);
     if (storage.useServer) {
-        await api.post('courses', newCourse);
-    } else {
+        try {
+            const result = await api.post('courses', newCourse);
+            if (!result || result.error) {
+                alert('Lỗi tạo khóa học: ' + (result?.error || 'Lỗi không xác định'));
+                await doRenderAll();
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi tạo khóa học. Vui lòng thử lại.');
+            console.error('Quick add course error:', err);
+            return;
+        }
+    }
+    state.courses.push(newCourse);
+
+    if (!storage.useServer) {
         await storage.saveCourses();
     }
 
@@ -346,12 +391,24 @@ export const updateQuickManageStatus = async courseId => {
     const course = state.courses.find(c => c.id === courseId);
     if (!course) return;
 
-    course.status = newStatus;
     if (storage.useServer) {
-        await api.put('courses', courseId, { name: course.name, instructor: course.instructor, month: course.month, fee: course.fee, maxStudents: course.maxStudents, status: newStatus });
+        try {
+            const result = await api.put('courses', courseId, { name: course.name, instructor: course.instructor, month: course.month, fee: course.fee, maxStudents: course.maxStudents, status: newStatus });
+            if (!result || result.error) {
+                alert('Lỗi cập nhật trạng thái: ' + (result?.error || 'Lỗi không xác định'));
+                await doRenderAll();
+                return;
+            }
+        } catch (err) {
+            alert('Lỗi kết nối server khi cập nhật trạng thái. Vui lòng thử lại.');
+            console.error('Update course status error:', err);
+            return;
+        }
     } else {
+        course.status = newStatus;
         await storage.saveCourses();
     }
+    course.status = newStatus;
     await doRenderAll();
     alert(`Đã cập nhật trạng thái "${formatCourseName(course)}" thành "${newStatus}".`);
 };

@@ -643,3 +643,79 @@ excel-import.js ← state.js, storage.js, utils.js
   → Self change: clear `token`, `currentAdmin`, gọi `showLogin()`
   → Other admin change: alert thành công bình thường
   - Server mode: chỉ dùng individual API, không gọi `saveAdmins()`
+
+---
+
+## 🐛 LỖI MỚI PHÁT HIỆN (Review 2026-06-10 Round 2) — ĐÃ SỬA
+
+### Tổng số lỗi mới: 10 (tất cả đã sửa ✅)
+
+| # | Vấn đề | Mức độ | Trạng thái |
+|---|--------|--------|-----------|
+| 90 | student.js — `handleDeleteFilteredStudents` API calls không có error handling | 🔴 CRITICAL | ✅ |
+| 91 | course.js — `updateQuickManageStatus` API call không có error handling | 🔴 CRITICAL | ✅ |
+| 92 | enrollment.js — `handleDeleteAllEnrollments` API calls không có error handling | 🔴 CRITICAL | ✅ |
+| 93 | enrollment.js — `handleCopyEnrollment` API calls không có error handling | 🔴 CRITICAL | ✅ |
+| 94 | attendance.js — `deleteAttendanceDate` API calls không có error handling | 🔴 CRITICAL | ✅ |
+| 95 | merge-students.js — `mergeStudents` tất cả 5 API calls không có error handling | 🔴 CRITICAL | ✅ |
+| 96 | admin.js — `deleteAdmin` thiếu result.error check | 🟡 MEDIUM | ✅ |
+| 97 | admin.js — `handleAdminSubmit` edit path thiếu result.error check | 🟡 MEDIUM | ✅ |
+| 98 | storage.js — `saveAdmins` loop không có error handling | 🟡 MEDIUM | ✅ |
+
+### Mô tả chi tiết
+
+#### #90 — handleDeleteFilteredStudents không có error handling (🔴 CRITICAL)
+- **File**: `modules/student.js:331-334`
+- **Nguyên nhân**: `api.delete('students', id)` trong loop không có try/catch hay result check. Local state bị xóa trước khi server calls.
+- **Cách sửa**: Thêm try/catch + result check. Di chuyển state mutation sau server calls thành công.
+
+#### #91 — updateQuickManageStatus không có error handling (🔴 CRITICAL)
+- **File**: `modules/course.js:394-401`
+- **Nguyên nhân**: `api.put('courses', ...)` không có try/catch. State mutated trước server call.
+- **Cách sửa**: Thêm try/catch + result check. Chỉ mutate state sau server success.
+
+#### #92 — handleDeleteAllEnrollments không có error handling (🔴 CRITICAL)
+- **File**: `modules/enrollment.js:387-391`
+- **Nguyên nhân**: `api.delete('enrollments', e.id)` loop không có error handling. State wiped unconditionally.
+- **Cách sửa**: Thêm try/catch + result check. Chỉ wipe state sau server success.
+
+#### #93 — handleCopyEnrollment không có error handling (🔴 CRITICAL)
+- **File**: `modules/enrollment.js:532-536`
+- **Nguyên nhân**: `api.post('enrollments', e)` loop không có error handling. State mutated trước server.
+- **Cách sửa**: Thêm try/catch + result check. Di chuyển state mutation sau server success.
+
+#### #94 — deleteAttendanceDate không có error handling (🔴 CRITICAL)
+- **File**: `modules/attendance.js:189-193`
+- **Nguyên nhân**: `api.delete('attendances', a.id)` loop không có error handling. State mutated trước server.
+- **Cách sửa**: Thêm try/catch + result check. Di chuyển state mutation sau server success.
+
+#### #95 — mergeStudents tất cả API calls không có error handling (🔴 CRITICAL)
+- **File**: `modules/merge-students.js:159-176`
+- **Nguyên nhân**: 5 API calls (delete + 4 sync loops) không có error handling. Local state mutated trước server.
+- **Cách sửa**: Wrap tất cả server calls trong try/catch. Thêm rollback mechanism — lưu original state trước khi mutate, rollback nếu bất kỳ call nào fail.
+
+#### #96 — deleteAdmin thiếu result.error check (🟡 MEDIUM)
+- **File**: `modules/admin.js:116-123`
+- **Nguyên nhân**: Có try/catch nhưng không check `result.error`. State vẫn bị xóa dù server trả error.
+- **Cách sửa**: Thêm `if (!result || result.error)` check trong try block.
+
+#### #97 — handleAdminSubmit edit path thiếu result.error check (🟡 MEDIUM)
+- **File**: `modules/admin.js:172-186`
+- **Nguyên nhân**: Có try/catch nhưng không check `result.error`. State mutated trước server call.
+- **Cách sửa**: Thêm result check. Di chuyển state mutation (`state.admins[index] = updatedAdmin`) sau server success.
+
+#### #98 — saveAdmins loop không có error handling (🟡 MEDIUM)
+- **File**: `modules/storage.js:241-250`
+- **Nguyên nhân**: `api.put('admins', ...)` loop không có error handling. Partial sync possible.
+- **Cách sửa**: Thêm result check + throw Error nếu fail để caller có thể catch.
+
+### Files đã sửa:
+- `modules/student.js` — handleDeleteFilteredStudents: thêm try/catch + result check, move state mutation after server
+- `modules/course.js` — updateQuickManageStatus: thêm try/catch + result check, move state mutation after server
+- `modules/enrollment.js` — handleDeleteAllEnrollments: thêm try/catch + result check, move state mutation after server
+- `modules/enrollment.js` — handleCopyEnrollment: thêm try/catch + result check, move state mutation after server
+- `modules/attendance.js` — deleteAttendanceDate: thêm try/catch + result check, move state mutation after server
+- `modules/merge-students.js` — mergeStudents: thêm try/catch + rollback mechanism cho tất cả server calls
+- `modules/admin.js` — deleteAdmin: thêm result.error check
+- `modules/admin.js` — handleAdminSubmit edit: thêm result.error check, move state mutation after server
+- `modules/storage.js` — saveAdmins: thêm result check + throw on error

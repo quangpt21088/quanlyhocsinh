@@ -241,12 +241,15 @@ export class StorageManager {
     async saveAdmins() {
         if (this.useServer) {
             for (const admin of state.admins) {
-                await api.put('admins', admin.id, {
+                const result = await api.put('admins', admin.id, {
                     username: admin.username,
                     name: admin.name,
                     role: admin.role,
                     permissions: admin.permissions
                 });
+                if (!result || result.error) {
+                    throw new Error(result?.error || 'Lỗi lưu admin ' + admin.username);
+                }
             }
             return;
         }

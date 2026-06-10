@@ -115,9 +115,14 @@ export const deleteAdmin = async id => {
 
     if (storage.useServer) {
         try {
-            await api.delete('admins', id);
+            const result = await api.delete('admins', id);
+            if (!result || result.error) {
+                alert('Lỗi xóa admin: ' + (result?.error || 'Lỗi không xác định'));
+                return;
+            }
         } catch (err) {
-            alert('Lỗi xóa admin trên server.');
+            alert('Lỗi kết nối server khi xóa admin. Vui lòng thử lại.');
+            console.error('Delete admin error:', err);
             return;
         }
     }
@@ -157,7 +162,7 @@ export const handleAdminSubmit = async e => {
             alert('Tên đăng nhập đã tồn tại.'); return;
         }
 
-        state.admins[index] = {
+        const updatedAdmin = {
             ...current, username, name, role, permissions,
             updatedAt: new Date().toISOString()
         };
@@ -165,26 +170,35 @@ export const handleAdminSubmit = async e => {
         if (password && password.length > 0) {
             if (password.length < 4) { alert('Mật khẩu phải có ít nhất 4 ký tự.'); return; }
             const { hashPassword } = await import('./auth.js');
-            state.admins[index].passwordHash = await hashPassword(password);
+            updatedAdmin.passwordHash = await hashPassword(password);
         }
 
-        cancelAdminEdit();
         if (storage.useServer) {
             try {
                 const updateData = {
-                    username: state.admins[index].username,
-                    name: state.admins[index].name,
-                    role: state.admins[index].role,
-                    permissions: state.admins[index].permissions
+                    username: updatedAdmin.username,
+                    name: updatedAdmin.name,
+                    role: updatedAdmin.role,
+                    permissions: updatedAdmin.permissions
                 };
                 if (password && password.length > 0) {
                     updateData.password = password;
                 }
-                await api.put('admins', state.admins[index].id, updateData);
+                const result = await api.put('admins', updatedAdmin.id, updateData);
+                if (!result || result.error) {
+                    alert('Lỗi cập nhật admin: ' + (result?.error || 'Lỗi không xác định'));
+                    return;
+                }
             } catch (err) {
-                alert('Lỗi cập nhật admin trên server.'); return;
+                alert('Lỗi kết nối server khi cập nhật admin. Vui lòng thử lại.');
+                console.error('Update admin error:', err);
+                return;
             }
-        } else {
+        }
+
+        state.admins[index] = updatedAdmin;
+        cancelAdminEdit();
+        if (!storage.useServer) {
             await storage.saveAdmins();
         }
         renderAdminTable();
