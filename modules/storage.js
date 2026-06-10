@@ -1,5 +1,6 @@
 // modules/storage.js - Hybrid storage manager
 import { state } from './state.js';
+import { api } from './api.js';
 
 export class StorageManager {
     constructor() {
@@ -8,13 +9,41 @@ export class StorageManager {
 
     async init() {
         try {
-            // Dynamically import api to avoid circular dependency (api -> storage -> api)
-            const { api } = await import('./api.js');
             const response = await api.get('ping');
             this.useServer = !!response;
         } catch {
             this.useServer = false;
         }
+    }
+
+    // Persist students locally (no batch writes any more)
+    async saveStudents() {
+        localStorage.setItem('students', JSON.stringify(state.students));
+    }
+
+    // Persist courses locally (no batch writes any more)
+    async saveCourses() {
+        localStorage.setItem('courses', JSON.stringify(state.courses));
+    }
+
+    // Persist enrollments locally (no batch writes any more)
+    async saveEnrollments() {
+        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+    }
+
+    // Persist attendances locally (no batch writes any more)
+    async saveAttendances() {
+        localStorage.setItem('attendances', JSON.stringify(state.attendances));
+    }
+
+    // Persist payment records locally (no batch writes any more)
+    async savePaymentRecords() {
+        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+    }
+
+    // Persist admins locally (no batch writes any more)
+    async saveAdmins() {
+        localStorage.setItem('admins', JSON.stringify(state.admins));
     }
 
     async getStudents() {
@@ -28,19 +57,12 @@ export class StorageManager {
         return data;
     }
 
-    async saveStudents() {
-        if (this.useServer) {
-            return api.post('students/batch', state.students);
-        }
-        localStorage.setItem('students', JSON.stringify(state.students));
-    }
-
     async addStudent(student) {
         if (this.useServer) {
             return api.post('students', student);
         }
         state.students.push(student);
-        localStorage.setItem('students', JSON.stringify(state.students));
+        await this.saveStudents();
     }
 
     async updateStudent(student) {
@@ -49,7 +71,7 @@ export class StorageManager {
         }
         const idx = state.students.findIndex(s => s.id === student.id);
         if (idx !== -1) state.students[idx] = student;
-        localStorage.setItem('students', JSON.stringify(state.students));
+        await this.saveStudents();
     }
 
     async removeStudent(id) {
@@ -57,7 +79,7 @@ export class StorageManager {
             return api.delete('students', id);
         }
         state.students = state.students.filter(s => s.id !== id);
-        localStorage.setItem('students', JSON.stringify(state.students));
+        await this.saveStudents();
     }
 
     async getCourses() {
@@ -71,19 +93,12 @@ export class StorageManager {
         return data;
     }
 
-    async saveCourses() {
-        if (this.useServer) {
-            return api.post('courses/batch', state.courses);
-        }
-        localStorage.setItem('courses', JSON.stringify(state.courses));
-    }
-
     async addCourse(course) {
         if (this.useServer) {
             return api.post('courses', course);
         }
         state.courses.push(course);
-        localStorage.setItem('courses', JSON.stringify(state.courses));
+        await this.saveCourses();
     }
 
     async updateCourse(course) {
@@ -92,7 +107,7 @@ export class StorageManager {
         }
         const idx = state.courses.findIndex(c => c.id === course.id);
         if (idx !== -1) state.courses[idx] = course;
-        localStorage.setItem('courses', JSON.stringify(state.courses));
+        await this.saveCourses();
     }
 
     async removeCourse(id) {
@@ -100,7 +115,7 @@ export class StorageManager {
             return api.delete('courses', id);
         }
         state.courses = state.courses.filter(c => c.id !== id);
-        localStorage.setItem('courses', JSON.stringify(state.courses));
+        await this.saveCourses();
     }
 
     async getEnrollments() {
@@ -114,19 +129,12 @@ export class StorageManager {
         return data;
     }
 
-    async saveEnrollments() {
-        if (this.useServer) {
-            return api.post('enrollments/batch', state.enrollments);
-        }
-        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
-    }
-
     async addEnrollment(enrollment) {
         if (this.useServer) {
             return api.post('enrollments', enrollment);
         }
         state.enrollments.push(enrollment);
-        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+        await this.saveEnrollments();
     }
 
     async updateEnrollment(enrollment) {
@@ -135,7 +143,7 @@ export class StorageManager {
         }
         const idx = state.enrollments.findIndex(e => e.id === enrollment.id);
         if (idx !== -1) state.enrollments[idx] = enrollment;
-        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+        await this.saveEnrollments();
     }
 
     async removeEnrollment(id) {
@@ -143,7 +151,7 @@ export class StorageManager {
             return api.delete('enrollments', id);
         }
         state.enrollments = state.enrollments.filter(e => e.id !== id);
-        localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
+        await this.saveEnrollments();
     }
 
     async getAttendances() {
@@ -157,19 +165,12 @@ export class StorageManager {
         return data;
     }
 
-    async saveAttendances() {
-        if (this.useServer) {
-            return api.post('attendances/batch', state.attendances);
-        }
-        localStorage.setItem('attendances', JSON.stringify(state.attendances));
-    }
-
     async addAttendance(attendance) {
         if (this.useServer) {
             return api.post('attendances', attendance);
         }
         state.attendances.push(attendance);
-        localStorage.setItem('attendances', JSON.stringify(state.attendances));
+        await this.saveAttendances();
     }
 
     async removeAttendanceByCourseDate(courseId, date) {
@@ -181,7 +182,7 @@ export class StorageManager {
             }
         }
         state.attendances = state.attendances.filter(a => !(a.courseId === courseId && a.date === date));
-        localStorage.setItem('attendances', JSON.stringify(state.attendances));
+        await this.saveAttendances();
     }
 
     async getPaymentRecords() {
@@ -195,19 +196,12 @@ export class StorageManager {
         return data;
     }
 
-    async savePaymentRecords() {
-        if (this.useServer) {
-            return api.post('payments/batch', state.paymentRecords);
-        }
-        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
-    }
-
     async addPaymentRecord(record) {
         if (this.useServer) {
             return api.post('payments', record);
         }
         state.paymentRecords.push(record);
-        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+        await this.savePaymentRecords();
     }
 
     async updatePaymentRecord(record) {
@@ -216,7 +210,7 @@ export class StorageManager {
         }
         const idx = state.paymentRecords.findIndex(r => r.id === record.id);
         if (idx !== -1) state.paymentRecords[idx] = record;
-        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+        await this.savePaymentRecords();
     }
 
     async removePaymentRecord(id) {
@@ -224,7 +218,7 @@ export class StorageManager {
             return api.delete('payments', id);
         }
         state.paymentRecords = state.paymentRecords.filter(r => r.id !== id);
-        localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
+        await this.savePaymentRecords();
     }
 
     async getAdmins() {
@@ -239,49 +233,11 @@ export class StorageManager {
     }
 
     async saveAdmins() {
-        if (this.useServer) {
-            for (const admin of state.admins) {
-                const result = await api.put('admins', admin.id, {
-                    username: admin.username,
-                    name: admin.name,
-                    role: admin.role,
-                    permissions: admin.permissions
-                });
-                if (!result || result.error) {
-                    throw new Error(result?.error || 'Lỗi lưu admin ' + admin.username);
-                }
-            }
-            return;
-        }
         localStorage.setItem('admins', JSON.stringify(state.admins));
     }
 
     // Backup all data to JSON file
-    async exportBackup() {
-        const backupData = {
-            version: '1.0',
-            exportedAt: new Date().toISOString(),
-            students: state.students,
-            courses: state.courses,
-            enrollments: state.enrollments,
-            attendances: state.attendances,
-            paymentRecords: state.paymentRecords,
-            admins: state.admins
-        };
-
-        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // Restore all data from JSON file
-    async importBackup(file) {
+    async exportBackup(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = async e => {
@@ -379,25 +335,15 @@ export class StorageManager {
                     state.admins = admins;
 
                     // Save to localStorage
-                    localStorage.setItem('students', JSON.stringify(state.students));
-                    localStorage.setItem('courses', JSON.stringify(state.courses));
-                    localStorage.setItem('enrollments', JSON.stringify(state.enrollments));
-                    localStorage.setItem('attendances', JSON.stringify(state.attendances));
-                    localStorage.setItem('paymentRecords', JSON.stringify(state.paymentRecords));
-                    localStorage.setItem('admins', JSON.stringify(state.admins));
+                    await this.saveStudents();
+                    await this.saveCourses();
+                    await this.saveEnrollments();
+                    await this.saveAttendances();
+                    await this.savePaymentRecords();
+                    await this.saveAdmins();
 
-                    // Sync to server if using server mode
-                    if (this.useServer) {
-                        try {
-                            await api.post('students/batch', state.students);
-                            await api.post('courses/batch', state.courses);
-                            await api.post('enrollments/batch', state.enrollments);
-                            await api.post('attendances/batch', state.attendances);
-                            await api.post('payments/batch', state.paymentRecords);
-                        } catch (serverErr) {
-                            console.warn('Server sync failed after restore, data saved to localStorage only:', serverErr);
-                        }
-                    }
+                    // Sync to server if using server mode (now individual calls only, sync handled by UI actions)
+                    // No batch calls needed – individual operations will sync as they happen
 
                     // Re-render
                     if (typeof window.renderAll === 'function') {

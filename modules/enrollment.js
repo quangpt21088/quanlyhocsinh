@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { checkPermission } from './auth.js';
 import { storage } from './storage.js';
+import { api } from './api.js';
 import { getCourseEnrollmentCount, formatCourseName, formatDate, getStatusClass, escapeHtml } from './utils.js';
 
 // Use window.renderAll to avoid circular dependency

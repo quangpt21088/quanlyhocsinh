@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { checkPermission } from './auth.js';
 import { storage } from './storage.js';
+import { api } from './api.js';
 import { formatCurrency, formatDate, getStatusClass, formatCourseName, getCourseAttendanceDates, escapeHtml, generateId } from './utils.js';
 
 export const renderPaymentDropdowns = selectedMonth => {

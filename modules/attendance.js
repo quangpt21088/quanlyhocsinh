@@ -225,17 +225,21 @@ export const handleSaveAttendance = async () => {
         return;
     }
 
-    // Lưu attendance mới từ checkbox
+    // Lưu attendance mới từ checkbox — giữ nguyên ID cũ nếu record đã tồn tại
     const checkboxes = matrixBody?.querySelectorAll('input[type="checkbox"]') || [];
     const newRecords = [];
     checkboxes.forEach(cb => {
+        // Tìm record cũ để giữ nguyên ID (nếu có)
+        const existingRecord = state.attendances.find(
+            a => a.studentId === cb.dataset.student && a.courseId === courseId && a.date === cb.dataset.date
+        );
         const record = {
-            id: generateId('at_'),
+            id: existingRecord ? existingRecord.id : generateId('at_'),
             courseId: courseId,
             date: cb.dataset.date,
             studentId: cb.dataset.student,
             present: cb.checked,
-            createdAt: new Date().toISOString()
+            createdAt: existingRecord ? existingRecord.createdAt : new Date().toISOString()
         };
         newRecords.push(record);
     });

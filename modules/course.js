@@ -404,11 +404,13 @@ export const updateQuickManageStatus = async courseId => {
             console.error('Update course status error:', err);
             return;
         }
-    } else {
-        course.status = newStatus;
+    }
+
+    course.status = newStatus;
+
+    if (!storage.useServer) {
         await storage.saveCourses();
     }
-    course.status = newStatus;
     await doRenderAll();
     alert(`Đã cập nhật trạng thái "${formatCourseName(course)}" thành "${newStatus}".`);
 };
