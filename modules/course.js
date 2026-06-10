@@ -2,6 +2,7 @@
 import { state } from './state.js';
 import { checkPermission, readPermissionMatrix, setPermissionMatrix, resetPermissionMatrix } from './auth.js';
 import { storage } from './storage.js';
+import { api } from './api.js';
 import { getCourseEnrollmentCount, formatCurrency, formatCourseName, getStatusClass, escapeHtml } from './utils.js';
 
 // Use window.renderAll to avoid circular dependency
@@ -176,7 +177,7 @@ export const renderCourseTable = () => {
     if (instructorFilter) {
         instructorFilter.innerHTML = '<option value="">Tất Cả Giảng Viên</option>';
         instructors.forEach(inst => {
-            instructorFilter.innerHTML += `<option value="${inst}">${inst}</option>`;
+            instructorFilter.innerHTML += `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`;
         });
         instructorFilter.value = currentInstructor;
     }
@@ -223,7 +224,7 @@ export const renderCourseTable = () => {
     if (quickAddSourceCourse) {
         quickAddSourceCourse.innerHTML = '<option value="">Chọn khóa học</option>';
         state.courses.forEach(c => {
-            quickAddSourceCourse.innerHTML += `<option value="${c.id}">${formatCourseName(c)}</option>`;
+            quickAddSourceCourse.innerHTML += `<option value="${c.id}">${escapeHtml(formatCourseName(c))}</option>`;
         });
         quickAddSourceCourse.value = currentQuickAdd;
     }

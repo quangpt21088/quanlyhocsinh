@@ -34,7 +34,7 @@ export const renderEnrollmentDropdowns = () => {
         enrollFilteredCourses.forEach(c => {
             const enrolled = getCourseEnrollmentCount(c.id);
             if (!c.maxStudents || enrolled < c.maxStudents) {
-                enrollCourse.innerHTML += `<option value="${c.id}">${formatCourseName(c)} (${enrolled}/${c.maxStudents || '-'})</option>`;
+                enrollCourse.innerHTML += `<option value="${c.id}">${escapeHtml(formatCourseName(c))} (${enrolled}/${c.maxStudents || '-'})</option>`;
             }
         });
         enrollCourse.value = currentCourse;
@@ -75,8 +75,8 @@ export const handleStudentSearch = () => {
     if (enrollStudentDropdown) {
         enrollStudentDropdown.innerHTML = matches.map(s => {
             const phone = s.phone ? ` - ${s.phone}` : '';
-            return `<div class="autocomplete-item" data-id="${s.id}" data-name="${s.name}">
-                <strong>${s.name}</strong>
+            return `<div class="autocomplete-item" data-id="${s.id}" data-name="${escapeHtml(s.name)}">
+                <strong>${escapeHtml(s.name)}</strong>
                 <span class="student-info">${phone}</span>
             </div>`;
         }).join('');
@@ -379,8 +379,8 @@ export const renderCopyEnrollmentDropdowns = () => {
 
     courses.forEach(c => {
         const enrolled = state.enrollments.filter(e => e.courseId === c.id).length;
-        copyFromCourse.innerHTML += `<option value="${c.id}">${formatCourseName(c)} (${enrolled} học viên)</option>`;
-        copyToCourse.innerHTML += `<option value="${c.id}">${formatCourseName(c)} (${enrolled} học viên)</option>`;
+        copyFromCourse.innerHTML += `<option value="${c.id}">${escapeHtml(formatCourseName(c))} (${enrolled} học viên)</option>`;
+        copyToCourse.innerHTML += `<option value="${c.id}">${escapeHtml(formatCourseName(c))} (${enrolled} học viên)</option>`;
     });
 
     copyFromCourse.value = currentFrom;
@@ -423,8 +423,8 @@ export const updateCopyEnrollmentInfo = () => {
     copyInfo.style.display = 'block';
     if (copyStudentCount) {
         copyStudentCount.innerHTML = `
-            <strong>Từ:</strong> ${formatCourseName(fromCourse)}<br>
-            <strong>Sang:</strong> ${formatCourseName(toCourse)}<br>
+            <strong>Từ:</strong> ${escapeHtml(formatCourseName(fromCourse))}<br>
+            <strong>Sang:</strong> ${escapeHtml(formatCourseName(toCourse))}<br>
             <strong>Sẽ sao chép:</strong> ${newStudents.length} học viên mới<br>
             ${duplicateCount > 0 ? `<span style="color: var(--warning);"><strong>Bỏ qua:</strong> ${duplicateCount} học viên đã ghi danh</span>` : ''}
         `;

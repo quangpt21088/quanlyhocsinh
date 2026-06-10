@@ -216,15 +216,17 @@ const setupEventListeners = () => {
     // Admin events
     const adminForm = document.getElementById('adminForm');
     if (adminForm) adminForm.addEventListener('submit', handleAdminSubmit);
+    const adminCancelBtn = document.getElementById('adminCancelBtn');
+    if (adminCancelBtn) adminCancelBtn.addEventListener('click', cancelAdminEdit);
 
     // Initialize merge students, copy enrollment, backup/restore, and excel import
     initMergeStudents();
     initCopyEnrollment();
-    initBackupRestore();
     initExcelImport();
     initImportEnroll();
     initCourseStudentImport();
     initCourseImport();
+    initBackupRestore();
 };
 
 // Backup/Restore initialization

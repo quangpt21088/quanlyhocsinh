@@ -66,31 +66,28 @@ export const updateReportCourseText = () => {
 };
 
 export const attachCourseCheckboxListeners = () => {
-    const allCheckbox = document.querySelector('#reportCourseDropdown input[value=""]');
-    const courseCheckboxes = document.querySelectorAll('#reportCourseOptions input[type="checkbox"]');
+    const dropdown = document.getElementById('reportCourseDropdown');
+    if (!dropdown || dropdown.dataset.listenersAttached) return;
+    dropdown.dataset.listenersAttached = 'true';
 
-    if (allCheckbox) {
-        allCheckbox.addEventListener('change', () => {
-            if (allCheckbox.checked) {
-                courseCheckboxes.forEach(cb => cb.checked = false);
-            }
-            updateReportCourseText();
-            renderReport();
-        });
-    }
+    dropdown.addEventListener('change', e => {
+        if (!e.target.matches('input[type="checkbox"]')) return;
+        const allCheckbox = dropdown.querySelector('input[value=""]');
+        const courseCheckboxes = dropdown.querySelectorAll('#reportCourseOptions input[type="checkbox"]');
 
-    courseCheckboxes.forEach(cb => {
-        cb.addEventListener('change', () => {
-            if (cb.checked && allCheckbox) {
-                allCheckbox.checked = false;
-            }
-            const anyChecked = Array.from(courseCheckboxes).some(c => c.checked);
-            if (!anyChecked && allCheckbox) {
-                allCheckbox.checked = true;
-            }
-            updateReportCourseText();
-            renderReport();
-        });
+        if (e.target === allCheckbox && allCheckbox.checked) {
+            courseCheckboxes.forEach(cb => cb.checked = false);
+        } else if (e.target !== allCheckbox && e.target.checked && allCheckbox) {
+            allCheckbox.checked = false;
+        }
+
+        const anyChecked = Array.from(courseCheckboxes).some(c => c.checked);
+        if (!anyChecked && allCheckbox) {
+            allCheckbox.checked = true;
+        }
+
+        updateReportCourseText();
+        renderReport();
     });
 };
 

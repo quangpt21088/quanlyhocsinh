@@ -338,6 +338,7 @@ export const handleSavePaymentStatuses = async () => {
     const statusSelects = document.querySelectorAll('.payment-status-select');
     let updatedCount = 0;
 
+    const toUpdate = [];
     const toCreate = [];
     statusSelects.forEach(select => {
         const studentId = select.dataset.studentId;
@@ -354,7 +355,7 @@ export const handleSavePaymentStatuses = async () => {
             state.paymentRecords[existingIndex].updatedAt = new Date().toISOString();
             if (storage.useServer) {
                 const r = state.paymentRecords[existingIndex];
-                api.put('payments', r.id, { studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method });
+                toUpdate.push(r);
             }
         } else {
             if (newStatus !== 'Chưa thanh toán') {
@@ -377,6 +378,9 @@ export const handleSavePaymentStatuses = async () => {
     });
 
     if (storage.useServer) {
+        for (const r of toUpdate) {
+            await api.put('payments', r.id, { studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method });
+        }
         for (const r of toCreate) {
             await api.post('payments', { id: r.id, studentId: r.studentId, courseId: r.courseId, month: r.month, status: r.status, method: r.method, createdAt: r.createdAt });
         }

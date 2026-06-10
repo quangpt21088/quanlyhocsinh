@@ -29,7 +29,7 @@
 | merge-students.js | Merge students functionality | ~180 |
 | excel-import.js | Excel/CSV import + Import & Enroll + Import Course + Import Course&Student | ~620 |
 
-### Tổng số vấn đề đã sửa: 61 (59 cũ + 2 mới)
+### Tổng số vấn đề đã sửa: 95 (59 cũ + 36 mới)
 
 ### Tất cả bug đã sửa. Code sẵn sàng cho production.
 
