@@ -370,8 +370,8 @@ export const renderEnrollmentTable = () => {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${escapeHtml(student ? student.name : 'Đã xóa')}</strong></td>
-            <td>${escapeHtml(course ? formatCourseName(course) : 'Đã xóa')}</td>
+            <td><strong>${escapeHtml(student ? student.name : (enrollment.studentId || 'N/A'))}</strong></td>
+            <td>${escapeHtml(course ? formatCourseName(course) : (enrollment.courseId || 'N/A'))}</td>
             <td>${formatDate(enrollment.date)}</td>
             <td>${escapeHtml(discountText)}</td>
             <td class="actions-cell">${actions.join('') || '-'}</td>
