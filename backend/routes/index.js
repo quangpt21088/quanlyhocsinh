@@ -3,7 +3,22 @@ const { getPool } = require('../database');
 const { login, createAdmin, updateAdmin, deleteAdmin, changePassword, getAdmins, getAdminById } = require('../auth');
 const { authMiddleware, superOnly, checkPermission } = require('../middleware');
 const router = express.Router();
-const all = async (sql, params = []) => { const pool = getPool(); const result = await pool.query(sql, params); return result.rows; };
+const toCamel = obj => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const map = {
+        created_at: 'createdAt', updated_at: 'updatedAt',
+        student_id: 'studentId', course_id: 'courseId',
+        discount_type: 'discountType', discount_value: 'discountValue',
+        max_students: 'maxStudents', password_hash: 'passwordHash',
+        payment_records: null // table name, not column
+    };
+    const res = {};
+    for (const [k, v] of Object.entries(obj)) {
+        res[map[k] || k] = v;
+    }
+    return res;
+};
+const all = async (sql, params = []) => { const pool = getPool(); const result = await pool.query(sql, params); return result.rows.map(r => toCamel(r)); };
 const get = async (sql, params = []) => { const rows = await all(sql, params); return rows[0] || null; };
 const run = async (sql, params = []) => { const pool = getPool(); await pool.query(sql, params); };
 

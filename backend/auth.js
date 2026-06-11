@@ -23,17 +23,24 @@ const login = async (username, password) => {
     }
 };
 
+const toCamelObj = obj => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const map = { created_at: 'createdAt', updated_at: 'updatedAt', password_hash: 'passwordHash' };
+    const res = {};
+    for (const [k, v] of Object.entries(obj)) res[map[k] || k] = v;
+    return res;
+};
 const getAdmins = async () => {
     const pool = getPool();
     const result = await pool.query('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins ORDER BY created_at DESC');
-    return result.rows.map(a => ({ ...a, permissions: JSON.parse(a.permissions || '{}') }));
+    return result.rows.map(a => ({ ...toCamelObj(a), permissions: JSON.parse(a.permissions || '{}') }));
 };
 
 const getAdminById = async (id) => {
     const pool = getPool();
     const result = await pool.query('SELECT id, username, name, role, permissions, created_at, updated_at FROM admins WHERE id = $1', [id]);
     if (result.rows.length === 0) return null;
-    const a = result.rows[0];
+    const a = toCamelObj(result.rows[0]);
     a.permissions = JSON.parse(a.permissions || '{}');
     return a;
 };
