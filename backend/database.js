@@ -22,8 +22,8 @@ async function init() {
             permissions TEXT NOT NULL DEFAULT '{}',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );
-        CREATE TABLE IF NOT EXISTS students (
+        )`);
+        await client.query(`CREATE TABLE IF NOT EXISTS students (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             phone TEXT DEFAULT '',
@@ -36,8 +36,8 @@ async function init() {
             discount_value REAL DEFAULT 0,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );
-        CREATE TABLE IF NOT EXISTS courses (
+        )`);
+        await client.query(`CREATE TABLE IF NOT EXISTS courses (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
             instructor TEXT NOT NULL,
@@ -47,8 +47,8 @@ async function init() {
             status TEXT NOT NULL DEFAULT 'Chưa bắt đầu',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );
-        CREATE TABLE IF NOT EXISTS enrollments (
+        )`);
+        await client.query(`CREATE TABLE IF NOT EXISTS enrollments (
             id TEXT PRIMARY KEY,
             student_id TEXT NOT NULL,
             course_id TEXT NOT NULL,
@@ -57,8 +57,8 @@ async function init() {
             discount_value REAL DEFAULT 0,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );
-        CREATE TABLE IF NOT EXISTS attendances (
+        )`);
+        await client.query(`CREATE TABLE IF NOT EXISTS attendances (
             id TEXT PRIMARY KEY,
             course_id TEXT NOT NULL,
             student_id TEXT NOT NULL,
@@ -66,12 +66,8 @@ async function init() {
             present INTEGER NOT NULL DEFAULT 0,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );
-
-        // Migration: add updated_at to existing tables if missing
-        await client.query('ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
-        await client.query('ALTER TABLE attendances ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
-        CREATE TABLE IF NOT EXISTS payment_records (
+        )`);
+        await client.query(`CREATE TABLE IF NOT EXISTS payment_records (
             id TEXT PRIMARY KEY,
             student_id TEXT NOT NULL,
             course_id TEXT NOT NULL,
@@ -80,7 +76,11 @@ async function init() {
             method TEXT DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ
-        );`);
+        )`);
+
+        // Migration: add updated_at to existing tables if missing
+        await client.query('ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
+        await client.query('ALTER TABLE attendances ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ');
         // Always ensure default super admin exists (upsert on username)
         const id = 'super_default_001';
         await client.query(

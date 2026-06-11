@@ -138,7 +138,9 @@ router.post('/enrollments/batch', authMiddleware, checkPermission('enrollment', 
 }));
 router.put('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'edit'), asyncHandler(async (req, res) => {
     const { studentId, courseId, date, discountType, discountValue } = req.body;
-    await run('UPDATE enrollments SET student_id=$1,course_id=$2,date=$3,discount_type=$4,discount_value=$5 WHERE id=$6', [studentId, courseId, date, discountType||'', discountValue||0, req.params.id]);
+    const existing = await get('SELECT id FROM enrollments WHERE id = $1', [req.params.id]);
+    if (!existing) return res.status(404).json({ error: 'Không tìm thấy ghi danh' });
+    await run('UPDATE enrollments SET student_id=$1,course_id=$2,date=$3,discount_type=$4,discount_value=$5,updated_at=NOW() WHERE id=$6', [studentId, courseId, date, discountType||'', discountValue||0, req.params.id]);
     res.json({ success: true });
 }));
 router.delete('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'delete'), asyncHandler(async (req, res) => {
@@ -210,6 +212,8 @@ router.post('/payments/batch', authMiddleware, checkPermission('payment', 'add')
 }));
 router.put('/payments/:id', authMiddleware, checkPermission('payment', 'edit'), asyncHandler(async (req, res) => {
     const { studentId, courseId, month, status, method } = req.body;
+    const existing = await get('SELECT id FROM payment_records WHERE id = $1', [req.params.id]);
+    if (!existing) return res.status(404).json({ error: 'Không tìm thấy bản ghi thanh toán' });
     await run('UPDATE payment_records SET student_id=$1,course_id=$2,month=$3,status=$4,method=$5,updated_at=NOW() WHERE id=$6', [studentId, courseId, month, status, method, req.params.id]);
     res.json({ success: true });
 }));
