@@ -6,47 +6,244 @@ const router = express.Router();
 const all = async (sql, params = []) => { const pool = getPool(); const result = await pool.query(sql, params); return result.rows; };
 const get = async (sql, params = []) => { const rows = await all(sql, params); return rows[0] || null; };
 const run = async (sql, params = []) => { const pool = getPool(); await pool.query(sql, params); };
-router.post('/auth/login', async (req, res) => {
+
+// Error wrapper for async route handlers
+const asyncHandler = fn => async (req, res) => {
     try {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
-        const result = await login(username, password);
-        if (!result) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
-        res.json(result);
+        await fn(req, res);
     } catch (err) {
-        console.error('Login route error:', err.message);
+        console.error('Route error:', err.message);
         res.status(500).json({ error: 'Lỗi server: ' + err.message });
     }
-});
+};
+
+router.post('/auth/login', asyncHandler(async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+    const result = await login(username, password);
+    if (!result) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+    res.json(result);
+}));
+
 router.get('/ping', (req, res) => { res.json({ status: 'ok', timestamp: new Date().toISOString() }); });
-router.get('/students', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM students ORDER BY name')); });
-router.post('/students', authMiddleware, checkPermission('students', 'add'), async (req, res) => { const { id, name, phone, email, dob, gender, address, status, discountType, discountValue, createdAt } = req.body; if (!name) return res.status(400).json({ error: 'Thiếu tên học viên' }); const sid = id || 'st_' + Date.now(); await run('INSERT INTO students (id, name, phone, email, dob, gender, address, status, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET name=$2,phone=$3,email=$4,dob=$5,gender=$6,address=$7,status=$8,discount_type=$9,discount_value=$10,created_at = EXCLUDED.created_at,updated_at=NOW()', [sid, name, phone||'', email||'', dob||'', gender||'', address||'', status||'Đang học', discountType||'', discountValue||0, createdAt||new Date().toISOString()]); res.json({ success: true, id: sid }); });
-router.post('/students/batch', authMiddleware, checkPermission('students', 'add'), async (req, res) => { const students = req.body; if (!Array.isArray(students)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' }); const pool = getPool(); const client = await pool.connect(); try { await client.query('BEGIN'); for (const s of students) { await client.query('INSERT INTO students (id, name, phone, email, dob, gender, address, status, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET name=$2,phone=$3,email=$4,dob=$5,gender=$6,address=$7,status=$8,discount_type=$9,discount_value=$10,created_at = EXCLUDED.created_at,updated_at=NOW()', [s.id||'st_'+Date.now(), s.name, s.phone||'', s.email||'', s.dob||'', s.gender||'', s.address||'', s.status||'Đang học', s.discountType||'', discountValue||0, s.createdAt||s.created_at||new Date().toISOString()]); } await client.query('COMMIT'); } catch(e) { await client.query('ROLLBACK'); return res.status(500).json({ error: e.message }); } finally { client.release(); } res.json({ success: true, count: students.length }); });
-router.put('/students/:id', authMiddleware, checkPermission('students', 'edit'), async (req, res) => { const { name, phone, email, dob, gender, address, status, discountType, discountValue } = req.body; const student = await get('SELECT id FROM students WHERE id = $1', [req.params.id]); if (!student) return res.status(404).json({ error: 'Không tìm thấy học viên' }); await run('UPDATE students SET name=$1,phone=$2,email=$3,dob=$4,gender=$5,address=$6,status=$7,discount_type=$8,discount_value=$9,updated_at=NOW() WHERE id=$10', [name, phone, email, dob, gender, address, status, discountType||'', discountValue||0, req.params.id]); res.json({ success: true }); });
-router.delete('/students/:id', authMiddleware, checkPermission('students', 'delete'), async (req, res) => { await run('DELETE FROM enrollments WHERE student_id = $1', [req.params.id]); await run('DELETE FROM attendances WHERE student_id = $1', [req.params.id]); await run('DELETE FROM payment_records WHERE student_id = $1', [req.params.id]); await run('DELETE FROM students WHERE id = $1', [req.params.id]); res.json({ success: true }); });
-router.get('/courses', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM courses ORDER BY created_at DESC')); });
-router.post('/courses', authMiddleware, checkPermission('courses', 'add'), async (req, res) => { const { id, name, instructor, month, fee, maxStudents, status, createdAt } = req.body; if (!name) return res.status(400).json({ error: 'Thiếu tên khóa học' }); if (!instructor) return res.status(400).json({ error: 'Thiếu tên giảng viên' }); const cid = id || 'co_' + Date.now(); await run('INSERT INTO courses (id, name, instructor, month, fee, max_students, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2,instructor=$3,month=$4,fee=$5,max_students=$6,status=$7,created_at = EXCLUDED.created_at,updated_at=NOW()', [cid, name, instructor, month||null, fee||0, maxStudents||30, status||'Chưa bắt đầu', createdAt||new Date().toISOString()]); res.json({ success: true, id: cid }); });
-router.post('/courses/batch', authMiddleware, checkPermission('courses', 'add'), async (req, res) => { const courses = req.body; if (!Array.isArray(courses)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' }); const pool = getPool(); const client = await pool.connect(); try { await client.query('BEGIN'); for (const c of courses) { await client.query('INSERT INTO courses (id,name,instructor,month,fee,max_students,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2,instructor=$3,month=$4,fee=$5,max_students=$6,status=$7,created_at = EXCLUDED.created_at,updated_at=NOW()', [c.id||'co_'+Date.now(), c.name, c.instructor, c.month||null, c.fee||0, c.maxStudents||c.max_students||30, c.status||'Chưa bắt đầu', c.createdAt||c.created_at||new Date().toISOString()]); } await client.query('COMMIT'); } catch(e) { await client.query('ROLLBACK'); return res.status(500).json({ error: e.message }); } finally { client.release(); } res.json({ success: true, count: courses.length }); });
-router.put('/courses/:id', authMiddleware, checkPermission('courses', 'edit'), async (req, res) => { const { name, instructor, month, fee, maxStudents, status } = req.body; const course = await get('SELECT id FROM courses WHERE id = $1', [req.params.id]); if (!course) return res.status(404).json({ error: 'Không tìm thấy khóa học' }); await run('UPDATE courses SET name=$1,instructor=$2,month=$3,fee=$4,max_students=$5,status=$6,updated_at=NOW() WHERE id=$7', [name, instructor, month, fee, maxStudents, status, req.params.id]); res.json({ success: true }); });
-router.delete('/courses/:id', authMiddleware, checkPermission('courses', 'delete'), async (req, res) => { await run('DELETE FROM enrollments WHERE course_id = $1', [req.params.id]); await run('DELETE FROM attendances WHERE course_id = $1', [req.params.id]); await run('DELETE FROM payment_records WHERE course_id = $1', [req.params.id]); await run('DELETE FROM courses WHERE id = $1', [req.params.id]); res.json({ success: true }); });
-router.get('/enrollments', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM enrollments ORDER BY created_at DESC')); });
-router.post('/enrollments', authMiddleware, checkPermission('enrollment', 'add'), async (req, res) => { const { id, studentId, courseId, date, discountType, discountValue, createdAt } = req.body; if (!studentId || !courseId || !date) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' }); const eid = id || 'en_' + Date.now(); await run('INSERT INTO enrollments (id, student_id, course_id, date, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,date=$4,discount_type=$5,discount_value=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [eid, studentId, courseId, date, discountType||'', discountValue||0, createdAt||new Date().toISOString()]); res.json({ success: true, id: eid }); });
-router.post('/enrollments/batch', authMiddleware, checkPermission('enrollment', 'add'), async (req, res) => { const enrollments = req.body; if (!Array.isArray(enrollments)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' }); const pool = getPool(); const client = await pool.connect(); try { await client.query('BEGIN'); for (const e of enrollments) { await client.query('INSERT INTO enrollments (id,student_id,course_id,date,discount_type,discount_value,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,date=$4,discount_type=$5,discount_value=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [e.id||'en_'+Date.now(), e.studentId||e.student_id, e.courseId||e.course_id, e.date, e.discountType||e.discount_type||'', e.discountValue||e.discount_value||0, e.createdAt||e.created_at||new Date().toISOString()]); } await client.query('COMMIT'); } catch(e) { await client.query('ROLLBACK'); return res.status(500).json({ error: e.message }); } finally { client.release(); } res.json({ success: true, count: enrollments.length }); });
-router.put('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'edit'), async (req, res) => { const { studentId, courseId, date, discountType, discountValue } = req.body; await run('UPDATE enrollments SET student_id=$1,course_id=$2,date=$3,discount_type=$4,discount_value=$5 WHERE id=$6', [studentId, courseId, date, discountType||'', discountValue||0, req.params.id]); res.json({ success: true }); });
-router.delete('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'delete'), async (req, res) => { await run('DELETE FROM enrollments WHERE id = $1', [req.params.id]); res.json({ success: true }); });
-router.get('/attendances', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM attendances ORDER BY date DESC')); });
-router.post('/attendances', authMiddleware, checkPermission('attendance', 'add'), async (req, res) => { const { id, courseId, studentId, date, present, createdAt } = req.body; if (!courseId || !studentId || !date) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' }); const aid = id || 'at_' + Date.now(); await run('INSERT INTO attendances (id, course_id, student_id, date, present, created_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET course_id=$2,student_id=$3,date=$4,present=$5,created_at = EXCLUDED.created_at,updated_at=NOW()', [aid, courseId, studentId, date, present?1:0, createdAt||new Date().toISOString()]); res.json({ success: true, id: aid }); });
-router.post('/attendances/batch', authMiddleware, checkPermission('attendance', 'add'), async (req, res) => { const attendances = req.body; if (!Array.isArray(attendances)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' }); const pool = getPool(); const client = await pool.connect(); try { await client.query('BEGIN'); for (const a of attendances) { await client.query('INSERT INTO attendances (id,course_id,student_id,date,present,created_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET course_id=$2,student_id=$3,date=$4,present=$5,created_at = EXCLUDED.created_at,updated_at=NOW()', [a.id||'at_'+Date.now(), a.courseId||a.course_id, a.studentId||a.student_id, a.date, a.present?1:0, a.createdAt||a.created_at||new Date().toISOString()]); } await client.query('COMMIT'); } catch(e) { await client.query('ROLLBACK'); return res.status(500).json({ error: e.message }); } finally { client.release(); } res.json({ success: true, count: attendances.length }); });
-router.put('/attendances/:id', authMiddleware, checkPermission('attendance', 'edit'), async (req, res) => { const { courseId, studentId, date, present } = req.body; await run('UPDATE attendances SET course_id=$1,student_id=$2,date=$3,present=$4 WHERE id=$5', [courseId, studentId, date, present?1:0, req.params.id]); res.json({ success: true }); });
-router.delete('/attendances/:id', authMiddleware, checkPermission('attendance', 'delete'), async (req, res) => { await run('DELETE FROM attendances WHERE id = $1', [req.params.id]); res.json({ success: true }); });
-router.get('/payments', authMiddleware, async (req, res) => { res.json(await all('SELECT * FROM payment_records ORDER BY created_at DESC')); });
-router.post('/payments', authMiddleware, checkPermission('payment', 'add'), async (req, res) => { const { id, studentId, courseId, month, status, method, createdAt } = req.body; if (!studentId || !courseId || !month) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' }); const pid = id || 'pay_' + Date.now(); await run('INSERT INTO payment_records (id, student_id, course_id, month, status, method, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,month=$4,status=$5,method=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [pid, studentId, courseId, month, status||'Chưa thanh toán', method||'', createdAt||new Date().toISOString()]); res.json({ success: true, id: pid }); });
-router.post('/payments/batch', authMiddleware, checkPermission('payment', 'add'), async (req, res) => { const payments = req.body; if (!Array.isArray(payments)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' }); const pool = getPool(); const client = await pool.connect(); try { await client.query('BEGIN'); for (const p of payments) { await client.query('INSERT INTO payment_records (id,student_id,course_id,month,status,method,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,month=$4,status=$5,method=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [p.id||'pay_'+Date.now(), p.studentId||p.student_id, p.courseId||p.course_id, p.month, p.status||'Chưa thanh toán', p.method||'', p.createdAt||p.created_at||new Date().toISOString()]); } await client.query('COMMIT'); } catch(e) { await client.query('ROLLBACK'); return res.status(500).json({ error: e.message }); } finally { client.release(); } res.json({ success: true, count: payments.length }); });
-router.put('/payments/:id', authMiddleware, checkPermission('payment', 'edit'), async (req, res) => { const { studentId, courseId, month, status, method } = req.body; await run('UPDATE payment_records SET student_id=$1,course_id=$2,month=$3,status=$4,method=$5,updated_at=NOW() WHERE id=$6', [studentId, courseId, month, status, method, req.params.id]); res.json({ success: true }); });
-router.delete('/payments/:id', authMiddleware, checkPermission('payment', 'delete'), async (req, res) => { await run('DELETE FROM payment_records WHERE id = $1', [req.params.id]); res.json({ success: true }); });
-router.get('/admins', authMiddleware, superOnly, async (req, res) => { res.json(await getAdmins()); });
-router.post('/admins', authMiddleware, superOnly, async (req, res) => { try { const admin = await createAdmin(req.body); res.json(admin); } catch (err) { res.status(400).json({ error: err.message }); } });
-router.put('/admins/:id', authMiddleware, superOnly, async (req, res) => { const admin = await updateAdmin(req.params.id, req.body); if (!admin) return res.status(404).json({ error: 'Không tìm thấy admin' }); res.json(admin); });
-router.delete('/admins/:id', authMiddleware, superOnly, async (req, res) => { try { await deleteAdmin(req.params.id); res.json({ success: true }); } catch (err) { res.status(400).json({ error: err.message }); } });
-router.post('/admins/:id/change-password', authMiddleware, superOnly, async (req, res) => { const { password } = req.body; if (!password || password.length < 4) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 4 ký tự' }); await changePassword(req.params.id, password); res.json({ success: true }); });
+router.get('/students', authMiddleware, asyncHandler(async (req, res) => { res.json(await all('SELECT * FROM students ORDER BY name')); }));
+router.post('/students', authMiddleware, checkPermission('students', 'add'), asyncHandler(async (req, res) => {
+    const { id, name, phone, email, dob, gender, address, status, discountType, discountValue, createdAt } = req.body;
+    if (!name) return res.status(400).json({ error: 'Thiếu tên học viên' });
+    const sid = id || 'st_' + Date.now();
+    await run('INSERT INTO students (id, name, phone, email, dob, gender, address, status, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET name=$2,phone=$3,email=$4,dob=$5,gender=$6,address=$7,status=$8,discount_type=$9,discount_value=$10,created_at = EXCLUDED.created_at,updated_at=NOW()', [sid, name, phone||'', email||'', dob||'', gender||'', address||'', status||'Đang học', discountType||'', discountValue||0, createdAt||new Date().toISOString()]);
+    res.json({ success: true, id: sid });
+}));
+router.post('/students/batch', authMiddleware, checkPermission('students', 'add'), asyncHandler(async (req, res) => {
+    const students = req.body;
+    if (!Array.isArray(students)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const s of students) {
+            await client.query('INSERT INTO students (id, name, phone, email, dob, gender, address, status, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET name=$2,phone=$3,email=$4,dob=$5,gender=$6,address=$7,status=$8,discount_type=$9,discount_value=$10,created_at = EXCLUDED.created_at,updated_at=NOW()', [s.id||'st_'+Date.now(), s.name, s.phone||'', s.email||'', s.dob||'', s.gender||'', s.address||'', s.status||'Đang học', s.discountType||'', s.discountValue||0, s.createdAt||s.created_at||new Date().toISOString()]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+    res.json({ success: true, count: students.length });
+}));
+router.put('/students/:id', authMiddleware, checkPermission('students', 'edit'), asyncHandler(async (req, res) => {
+    const { name, phone, email, dob, gender, address, status, discountType, discountValue } = req.body;
+    const student = await get('SELECT id FROM students WHERE id = $1', [req.params.id]);
+    if (!student) return res.status(404).json({ error: 'Không tìm thấy học viên' });
+    await run('UPDATE students SET name=$1,phone=$2,email=$3,dob=$4,gender=$5,address=$6,status=$7,discount_type=$8,discount_value=$9,updated_at=NOW() WHERE id=$10', [name, phone, email, dob, gender, address, status, discountType||'', discountValue||0, req.params.id]);
+    res.json({ success: true });
+}));
+router.delete('/students/:id', authMiddleware, checkPermission('students', 'delete'), asyncHandler(async (req, res) => {
+    await run('DELETE FROM enrollments WHERE student_id = $1', [req.params.id]);
+    await run('DELETE FROM attendances WHERE student_id = $1', [req.params.id]);
+    await run('DELETE FROM payment_records WHERE student_id = $1', [req.params.id]);
+    await run('DELETE FROM students WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+}));
+router.get('/courses', authMiddleware, asyncHandler(async (req, res) => { res.json(await all('SELECT * FROM courses ORDER BY created_at DESC')); }));
+router.post('/courses', authMiddleware, checkPermission('courses', 'add'), asyncHandler(async (req, res) => {
+    const { id, name, instructor, month, fee, maxStudents, status, createdAt } = req.body;
+    if (!name) return res.status(400).json({ error: 'Thiếu tên khóa học' });
+    if (!instructor) return res.status(400).json({ error: 'Thiếu tên giảng viên' });
+    const cid = id || 'co_' + Date.now();
+    await run('INSERT INTO courses (id, name, instructor, month, fee, max_students, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2,instructor=$3,month=$4,fee=$5,max_students=$6,status=$7,created_at = EXCLUDED.created_at,updated_at=NOW()', [cid, name, instructor, month||null, fee||0, maxStudents||30, status||'Chưa bắt đầu', createdAt||new Date().toISOString()]);
+    res.json({ success: true, id: cid });
+}));
+router.post('/courses/batch', authMiddleware, checkPermission('courses', 'add'), asyncHandler(async (req, res) => {
+    const courses = req.body;
+    if (!Array.isArray(courses)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const c of courses) {
+            await client.query('INSERT INTO courses (id,name,instructor,month,fee,max_students,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2,instructor=$3,month=$4,fee=$5,max_students=$6,status=$7,created_at = EXCLUDED.created_at,updated_at=NOW()', [c.id||'co_'+Date.now(), c.name, c.instructor, c.month||null, c.fee||0, c.maxStudents||c.max_students||30, c.status||'Chưa bắt đầu', c.createdAt||c.created_at||new Date().toISOString()]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+    res.json({ success: true, count: courses.length });
+}));
+router.put('/courses/:id', authMiddleware, checkPermission('courses', 'edit'), asyncHandler(async (req, res) => {
+    const { name, instructor, month, fee, maxStudents, status } = req.body;
+    const course = await get('SELECT id FROM courses WHERE id = $1', [req.params.id]);
+    if (!course) return res.status(404).json({ error: 'Không tìm thấy khóa học' });
+    await run('UPDATE courses SET name=$1,instructor=$2,month=$3,fee=$4,max_students=$5,status=$6,updated_at=NOW() WHERE id=$7', [name, instructor, month, fee, maxStudents, status, req.params.id]);
+    res.json({ success: true });
+}));
+router.delete('/courses/:id', authMiddleware, checkPermission('courses', 'delete'), asyncHandler(async (req, res) => {
+    await run('DELETE FROM enrollments WHERE course_id = $1', [req.params.id]);
+    await run('DELETE FROM attendances WHERE course_id = $1', [req.params.id]);
+    await run('DELETE FROM payment_records WHERE course_id = $1', [req.params.id]);
+    await run('DELETE FROM courses WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+}));
+router.get('/enrollments', authMiddleware, asyncHandler(async (req, res) => { res.json(await all('SELECT * FROM enrollments ORDER BY created_at DESC')); }));
+router.post('/enrollments', authMiddleware, checkPermission('enrollment', 'add'), asyncHandler(async (req, res) => {
+    const { id, studentId, courseId, date, discountType, discountValue, createdAt } = req.body;
+    if (!studentId || !courseId || !date) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' });
+    const eid = id || 'en_' + Date.now();
+    await run('INSERT INTO enrollments (id, student_id, course_id, date, discount_type, discount_value, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,date=$4,discount_type=$5,discount_value=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [eid, studentId, courseId, date, discountType||'', discountValue||0, createdAt||new Date().toISOString()]);
+    res.json({ success: true, id: eid });
+}));
+router.post('/enrollments/batch', authMiddleware, checkPermission('enrollment', 'add'), asyncHandler(async (req, res) => {
+    const enrollments = req.body;
+    if (!Array.isArray(enrollments)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const e of enrollments) {
+            await client.query('INSERT INTO enrollments (id,student_id,course_id,date,discount_type,discount_value,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,date=$4,discount_type=$5,discount_value=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [e.id||'en_'+Date.now(), e.studentId||e.student_id, e.courseId||e.course_id, e.date, e.discountType||e.discount_type||'', e.discountValue||e.discount_value||0, e.createdAt||e.created_at||new Date().toISOString()]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+    res.json({ success: true, count: enrollments.length });
+}));
+router.put('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'edit'), asyncHandler(async (req, res) => {
+    const { studentId, courseId, date, discountType, discountValue } = req.body;
+    await run('UPDATE enrollments SET student_id=$1,course_id=$2,date=$3,discount_type=$4,discount_value=$5 WHERE id=$6', [studentId, courseId, date, discountType||'', discountValue||0, req.params.id]);
+    res.json({ success: true });
+}));
+router.delete('/enrollments/:id', authMiddleware, checkPermission('enrollment', 'delete'), asyncHandler(async (req, res) => {
+    await run('DELETE FROM enrollments WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+}));
+router.get('/attendances', authMiddleware, asyncHandler(async (req, res) => { res.json(await all('SELECT * FROM attendances ORDER BY date DESC')); }));
+router.post('/attendances', authMiddleware, checkPermission('attendance', 'add'), asyncHandler(async (req, res) => {
+    const { id, courseId, studentId, date, present, createdAt } = req.body;
+    if (!courseId || !studentId || !date) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' });
+    const aid = id || 'at_' + Date.now();
+    await run('INSERT INTO attendances (id, course_id, student_id, date, present, created_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET course_id=$2,student_id=$3,date=$4,present=$5,created_at = EXCLUDED.created_at,updated_at=NOW()', [aid, courseId, studentId, date, present?1:0, createdAt||new Date().toISOString()]);
+    res.json({ success: true, id: aid });
+}));
+router.post('/attendances/batch', authMiddleware, checkPermission('attendance', 'add'), asyncHandler(async (req, res) => {
+    const attendances = req.body;
+    if (!Array.isArray(attendances)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const a of attendances) {
+            await client.query('INSERT INTO attendances (id,course_id,student_id,date,present,created_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET course_id=$2,student_id=$3,date=$4,present=$5,created_at = EXCLUDED.created_at,updated_at=NOW()', [a.id||'at_'+Date.now(), a.courseId||a.course_id, a.studentId||a.student_id, a.date, a.present?1:0, a.createdAt||a.created_at||new Date().toISOString()]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+    res.json({ success: true, count: attendances.length });
+}));
+router.put('/attendances/:id', authMiddleware, checkPermission('attendance', 'edit'), asyncHandler(async (req, res) => {
+    const { courseId, studentId, date, present } = req.body;
+    await run('UPDATE attendances SET course_id=$1,student_id=$2,date=$3,present=$4 WHERE id=$5', [courseId, studentId, date, present?1:0, req.params.id]);
+    res.json({ success: true });
+}));
+router.delete('/attendances/:id', authMiddleware, checkPermission('attendance', 'delete'), asyncHandler(async (req, res) => {
+    await run('DELETE FROM attendances WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+}));
+router.get('/payments', authMiddleware, asyncHandler(async (req, res) => { res.json(await all('SELECT * FROM payment_records ORDER BY created_at DESC')); }));
+router.post('/payments', authMiddleware, checkPermission('payment', 'add'), asyncHandler(async (req, res) => {
+    const { id, studentId, courseId, month, status, method, createdAt } = req.body;
+    if (!studentId || !courseId || !month) return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc' });
+    const pid = id || 'pay_' + Date.now();
+    await run('INSERT INTO payment_records (id, student_id, course_id, month, status, method, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,month=$4,status=$5,method=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [pid, studentId, courseId, month, status||'Chưa thanh toán', method||'', createdAt||new Date().toISOString()]);
+    res.json({ success: true, id: pid });
+}));
+router.post('/payments/batch', authMiddleware, checkPermission('payment', 'add'), asyncHandler(async (req, res) => {
+    const payments = req.body;
+    if (!Array.isArray(payments)) return res.status(400).json({ error: 'Dữ liệu không hợp lệ' });
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const p of payments) {
+            await client.query('INSERT INTO payment_records (id,student_id,course_id,month,status,method,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET student_id=$2,course_id=$3,month=$4,status=$5,method=$6,created_at = EXCLUDED.created_at,updated_at=NOW()', [p.id||'pay_'+Date.now(), p.studentId||p.student_id, p.courseId||p.course_id, p.month, p.status||'Chưa thanh toán', p.method||'', p.createdAt||p.created_at||new Date().toISOString()]);
+        }
+        await client.query('COMMIT');
+    } catch(e) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: e.message });
+    } finally {
+        client.release();
+    }
+    res.json({ success: true, count: payments.length });
+}));
+router.put('/payments/:id', authMiddleware, checkPermission('payment', 'edit'), asyncHandler(async (req, res) => {
+    const { studentId, courseId, month, status, method } = req.body;
+    await run('UPDATE payment_records SET student_id=$1,course_id=$2,month=$3,status=$4,method=$5,updated_at=NOW() WHERE id=$6', [studentId, courseId, month, status, method, req.params.id]);
+    res.json({ success: true });
+}));
+router.delete('/payments/:id', authMiddleware, checkPermission('payment', 'delete'), asyncHandler(async (req, res) => {
+    await run('DELETE FROM payment_records WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+}));
+router.get('/admins', authMiddleware, superOnly, asyncHandler(async (req, res) => { res.json(await getAdmins()); }));
+router.post('/admins', authMiddleware, superOnly, asyncHandler(async (req, res) => {
+    try {
+        const admin = await createAdmin(req.body);
+        res.json(admin);
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}));
+router.put('/admins/:id', authMiddleware, superOnly, asyncHandler(async (req, res) => {
+    const admin = await updateAdmin(req.params.id, req.body);
+    if (!admin) return res.status(404).json({ error: 'Không tìm thấy admin' });
+    res.json(admin);
+}));
+router.delete('/admins/:id', authMiddleware, superOnly, asyncHandler(async (req, res) => {
+    try {
+        await deleteAdmin(req.params.id);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}));
+router.post('/admins/:id/change-password', authMiddleware, superOnly, asyncHandler(async (req, res) => {
+    const { password } = req.body;
+    if (!password || password.length < 4) return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 4 ký tự' });
+    await changePassword(req.params.id, password);
+    res.json({ success: true });
+}));
+
 module.exports = router;
